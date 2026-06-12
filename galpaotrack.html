@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GalpãoTrack</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;}
+canvas{display:block;}
+.ldot{width:13px;height:13px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.tab-on{border-bottom:3px solid #2563EB;color:#2563EB;font-weight:700;}
+.tab-off{border-bottom:3px solid transparent;color:#6B7280;}
+.addr{font-family:monospace;font-weight:700;letter-spacing:.5px;}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#9CA3AF;border-radius:3px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+/* ═══════════════ CONSTANTES ═══════════════ */
+const S={P:'pendente',L:'lixando',LX:'lixado',PT:'pintando',C:'completo'};
+const SORD=['pendente','lixando','lixado','pintando','completo'];
+const SCOR={pendente:'#9CA3AF',lixando:'#FBBF24',lixado:'#F97316',pintando:'#3B82F6',completo:'#22C55E'};
+const SLAB={pendente:'Pendente',lixando:'Em Lixamento',lixado:'Lixado',pintando:'Em Pintura',completo:'Pintado ✓'};
+const TLAB={pilar:'Pilar',tesoura:'Tesoura',tc:'Terça Cob.',tf:'Terça Fech.'};
+const TLABP={pilar:'Pilares',tesoura:'Tesouras',tc:'Terças Cob.',tf:'Terças Fech.'};
+const pad2=n=>String(n).padStart(2,'0');
+
+/* ═══════════════════════════════════════════════════════════
+   FIREBASE CONFIG
+   Substitua os valores abaixo com o seu firebaseConfig.
+   Obtenha em: console.firebase.google.com → Seu Projeto → </> (Web App)
+   ═══════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAv8rEh1a2SKGYd4Am45vgJrXa0OrHsq5A",
+  authDomain:"galpaotrack.firebaseapp.com",
+  databaseURL:"https://galpaotrack-default-rtdb.firebaseio.com",
+  projectId:"galpaotrack",
+  storageBucket:"galpaotrack.firebasestorage.app",
+  messagingSenderId:"445368408598",
+  appId:"1:445368408598:web:1380fd505144c664c1f337"
+};
+const FIREBASE_OK=FIREBASE_CONFIG.apiKey!=='COLE_AQUI'&&FIREBASE_CONFIG.databaseURL!=='COLE_AQUI';
+let db=null;
+if(FIREBASE_OK){
+  try{const app=firebase.initializeApp(FIREBASE_CONFIG);db=firebase.database(app);}
+  catch(e){console.error('Firebase init:',e);}
+}
+
+/* ═══════════════ HELPERS FIREBASE ═══════════════ */
+// Firebase converte arrays em objetos — este helper normaliza de volta
+const toArr=v=>!v?[]:Array.isArray(v)?v:Object.values(v);
+const normProject=data=>{
+  if(!data?.elements)return data;
+  const els={};
+  Object.entries(data.elements).forEach(([id,el])=>{
+    els[id]={...el,history:toArr(el.history)};
+  });
+  return{...data,elements:els};
+};
+
+/* ═══════════════ ENDEREÇAMENTO ═══════════════ */
+function makeAddr(el){
+  switch(el.type){
+    case'pilar':   return `P.E${pad2(el.axis)}.${el.side}`;
+    case'tesoura': return `TS.E${pad2(el.axis)}${el.vao>1?`.V${el.vao}`:''}`;
+    case'tc':      return `TC.E${pad2(el.axisFrom)}-${pad2(el.axisTo)}.A${el.agua}.P${pad2(el.pos)}`;
+    case'tf':      return `TF.E${pad2(el.axisFrom)}-${pad2(el.axisTo)}.${el.side}.P${pad2(el.pos)}`;
+    default:       return el.id;
+  }
+}
+
+/* ═══════════════ GERAR ELEMENTOS ═══════════════ */
+function gerarElementos(cfg){
+  const{eixos,vaos=1,aguas=2,nTC=5,nTF=4}=cfg;
+  const els={};
+  for(let e=1;e<=eixos;e++){
+    for(let l=0;l<=vaos;l++){
+      const side=l===0?'LE':l===vaos?'LD':`L${l}`;
+      const id=`P_E${e}_${side}`;
+      els[id]={id,type:'pilar',axis:e,linha:l,side,label:`Pilar E${pad2(e)} ${side}`,status:S.P,history:[]};
+    }
+  }
+  for(let e=1;e<=eixos;e++){
+    for(let v=1;v<=vaos;v++){
+      const id=`TS_E${e}_V${v}`;
+      els[id]={id,type:'tesoura',axis:e,vao:v,label:`Tesoura E${pad2(e)}${vaos>1?` V${v}`:''}`,status:S.P,history:[]};
+    }
+  }
+  const slopes=aguas===2?[1,2]:[1];
+  for(let e=1;e<eixos;e++){
+    for(const a of slopes){
+      for(let p=1;p<=nTC;p++){
+        for(let v=1;v<=vaos;v++){
+          const id=`TC_E${e}${e+1}_A${a}_P${p}_V${v}`;
+          els[id]={id,type:'tc',axisFrom:e,axisTo:e+1,agua:a,pos:p,vao:v,
+            label:`T.Cob E${pad2(e)}-${pad2(e+1)} A${a} P${p}${vaos>1?` V${v}`:''}`,status:S.P,history:[]};
+        }
+      }
+    }
+  }
+  for(let e=1;e<eixos;e++){
+    for(const side of['LE','LD']){
+      for(let p=1;p<=nTF;p++){
+        const id=`TF_E${e}${e+1}_L${side}_P${p}`;
+        els[id]={id,type:'tf',axisFrom:e,axisTo:e+1,side,pos:p,
+          label:`T.Fech E${pad2(e)}-${pad2(e+1)} ${side} P${p}`,status:S.P,history:[]};
+      }
+    }
+  }
+  Object.values(els).forEach(el=>{el.addr=makeAddr(el);});
+  return els;
+}
+
+function calcStats(els){
+  const tot=Object.values(els).length;
+  const byS={};SORD.forEach(s=>{byS[s]=0;});
+  const byT={pilar:{},tesoura:{},tc:{},tf:{}};
+  SORD.forEach(s=>{Object.keys(byT).forEach(t=>{byT[t][s]=0;});});
+  Object.values(els).forEach(el=>{
+    byS[el.status]=(byS[el.status]||0)+1;
+    if(byT[el.type])byT[el.type][el.status]=(byT[el.type][el.status]||0)+1;
+  });
+  const done=byS[S.C]||0;
+  return{tot,done,pct:tot>0?Math.round(done/tot*100):0,byS,byT};
+}
+
+/* ═══════════════ BUSCA POR ENDEREÇO ═══════════════ */
+function BuscaEndereco({elements,onSelect}){
+  const[q,setQ]=useState('');
+  const[sugs,setSugs]=useState([]);
+  const ref=useRef(null);
+  const change=v=>{
+    setQ(v);
+    if(v.length<2){setSugs([]);return;}
+    const up=v.toUpperCase().replace(/\s/g,'');
+    const r=Object.values(elements)
+      .filter(el=>el.addr.replace(/\./g,'').toUpperCase().includes(up.replace(/\./g,''))
+              ||el.label.toUpperCase().includes(v.toUpperCase()))
+      .slice(0,10);
+    setSugs(r);
+  };
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setSugs([]);};
+    document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
+  },[]);
+  return(
+    <div ref={ref} className="relative">
+      <div className="flex items-center border-2 border-blue-200 rounded-xl bg-white overflow-hidden focus-within:border-blue-500">
+        <span className="pl-3 text-gray-400 text-lg">🔍</span>
+        <input value={q} onChange={e=>change(e.target.value)}
+          placeholder="Digite o endereço do elemento: TC.E01-02.A1.P03 ou P.E01.LE …"
+          className="flex-1 px-3 py-2.5 text-sm outline-none addr bg-transparent"
+          onKeyDown={e=>{if(e.key==='Escape'){setQ('');setSugs([]);}}}/>
+        {q&&<button onClick={()=>{setQ('');setSugs([]);}} className="px-3 text-gray-400 hover:text-gray-600">✕</button>}
+      </div>
+      {sugs.length>0&&(
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-xl mt-1 overflow-hidden">
+          {sugs.map(el=>(
+            <button key={el.id} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-50 last:border-0"
+              onClick={()=>{onSelect(el.id);setQ('');setSugs([]);}}>
+              <span className="ldot" style={{background:SCOR[el.status]}}/>
+              <span className="addr text-blue-700 text-sm">{el.addr}</span>
+              <span className="text-gray-400 text-xs ml-auto truncate max-w-[140px]">{SLAB[el.status]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════ VISTA LATERAL 2D ═══════════════ */
+function VistaLateral({project,selectedId,onSelect}){
+  const cvRef=useRef(null);
+  const hitMap=useRef({});
+  const draw=useCallback(()=>{
+    const cv=cvRef.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height;
+    const{config:cfg,elements:els}=project;
+    const{eixos,aguas=2,nTC=5,nTF=4}=cfg;
+    const nSpans=eixos-1;
+    const PL=70,PR=20,PT=50,PB=60;
+    const aW=W-PL-PR,aH=H-PT-PB;
+    const spanW=nSpans>0?aW/nSpans:aW;
+    const zRoofH=aH*0.42,zWallH=aH*0.44,zGndH=aH*0.14;
+    const yRoofTop=PT,yWallTop=PT+zRoofH,yGndTop=yWallTop+zWallH,yGnd=PT+aH;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#F8FAFC';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#EFF6FF';ctx.fillRect(PL,yRoofTop,aW,zRoofH);
+    ctx.fillStyle='#FFF7ED';ctx.fillRect(PL,yWallTop,aW,zWallH);
+    ctx.fillStyle='#F0FDF4';ctx.fillRect(PL,yGndTop,aW,zGndH);
+    ctx.save();ctx.translate(PL-10,yRoofTop+zRoofH/2);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle='#3B82F6';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('COBERTURA',0,0);ctx.restore();
+    ctx.save();ctx.translate(PL-10,yWallTop+zWallH/2);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle='#F97316';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('FECHAMENTO',0,0);ctx.restore();
+    ctx.strokeStyle='#E2E8F0';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PL,yWallTop);ctx.lineTo(PL+aW,yWallTop);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(PL,yGndTop);ctx.lineTo(PL+aW,yGndTop);ctx.stroke();
+    if(nSpans>0){
+      const ridgeY=yRoofTop+5,eaveY=yWallTop;
+      ctx.strokeStyle='#CBD5E1';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      if(aguas===2){const midX=PL+aW/2;ctx.beginPath();ctx.moveTo(PL,eaveY);ctx.lineTo(midX,ridgeY);ctx.lineTo(PL+aW,eaveY);ctx.stroke();}
+      else{ctx.beginPath();ctx.moveTo(PL,eaveY);ctx.lineTo(PL+aW,ridgeY);ctx.stroke();}
+      ctx.setLineDash([]);
+    }
+    hitMap.current={};
+    const EL_H=8;
+    for(let e=1;e<eixos;e++){
+      const x0=PL+(e-1)*spanW,x1=x0+spanW,xMid=(x0+x1)/2;
+      const slopes=aguas===2?[1,2]:[1];
+      for(const a of slopes){
+        const xSlope0=aguas===2?(a===1?x0:xMid):x0;
+        const xSlope1=aguas===2?(a===1?xMid:x1):x1;
+        const tcList=Object.values(els).filter(el=>el.type==='tc'&&el.axisFrom===e&&el.agua===a&&el.vao===1);
+        if(!tcList.length)continue;
+        const rowH=Math.min(EL_H+2,(zRoofH-16)/tcList.length);
+        tcList.sort((a,b)=>a.pos-b.pos).forEach((el,idx)=>{
+          const y=yRoofTop+8+idx*rowH,color=SCOR[el.status],sel=el.id===selectedId;
+          ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+          ctx.moveTo(xSlope0+2,y+rowH/2);ctx.lineTo(xSlope1-2,y+rowH/2);ctx.stroke();
+          if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+          hitMap.current[el.id]={x:(xSlope0+xSlope1)/2,y:y+rowH/2,w:xSlope1-xSlope0-4,h:rowH+4};
+        });
+      }
+      const tfLE=Object.values(els).filter(el=>el.type==='tf'&&el.axisFrom===e&&el.side==='LE').sort((a,b)=>a.pos-b.pos);
+      const tfLD=Object.values(els).filter(el=>el.type==='tf'&&el.axisFrom===e&&el.side==='LD').sort((a,b)=>a.pos-b.pos);
+      const nTFE=Math.max(tfLE.length,1),rowHTF=Math.min(EL_H+2,(zWallH-16)/nTFE);
+      tfLE.forEach((el,idx)=>{
+        const y=yWallTop+8+idx*rowHTF,sel=el.id===selectedId,color=SCOR[el.status];
+        ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+        ctx.moveTo(x0+2,y+rowHTF/2);ctx.lineTo(xMid-2,y+rowHTF/2);ctx.stroke();
+        if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+        hitMap.current[el.id]={x:(x0+xMid)/2,y:y+rowHTF/2,w:xMid-x0-4,h:rowHTF+4};
+      });
+      tfLD.forEach((el,idx)=>{
+        const y=yWallTop+8+idx*rowHTF,sel=el.id===selectedId,color=SCOR[el.status];
+        ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+        ctx.moveTo(xMid+2,y+rowHTF/2);ctx.lineTo(x1-2,y+rowHTF/2);ctx.stroke();
+        if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+        hitMap.current[el.id]={x:(xMid+x1)/2,y:y+rowHTF/2,w:x1-xMid-4,h:rowHTF+4};
+      });
+      ctx.fillStyle='#94A3B8';ctx.font='9px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}-E${e+1}`,xMid,yGnd+14);
+    }
+    const colW=Math.max(5,Math.min(10,spanW*0.08));
+    for(let e=1;e<=eixos;e++){
+      const cx=PL+(e-1)*spanW;
+      const pid=`P_E${e}_LE`,el=els[pid];
+      const color=el?SCOR[el.status]:'#9CA3AF',sel=el&&el.id===selectedId;
+      ctx.fillStyle=sel?'#1D4ED8':color;ctx.fillRect(cx-colW/2,yWallTop,colW,zWallH+zGndH);
+      if(sel){ctx.strokeStyle='#1D4ED8';ctx.lineWidth=2;ctx.strokeRect(cx-colW/2-1,yWallTop-1,colW+2,zWallH+zGndH+2);}
+      if(el)hitMap.current[el.id]={x:cx,y:yWallTop+zWallH/2,w:colW+12,h:zWallH};
+      ctx.fillStyle='#475569';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}`,cx,PT-8);
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#CBD5E1';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(cx,PT);ctx.lineTo(cx,yGnd);ctx.stroke();ctx.setLineDash([]);
+    }
+    const legX=PL,legY=yGnd+28;
+    ctx.font='9px sans-serif';ctx.textAlign='left';
+    [{c:'#3B82F6',l:'TC = Terça Cobertura'},{c:'#F97316',l:'TF = Terça Fechamento'},{c:'#6B7280',l:'P = Pilar'}]
+      .forEach((it,i)=>{const ix=legX+i*(aW/3);ctx.fillStyle=it.c;ctx.fillRect(ix,legY-8,18,8);ctx.fillStyle='#64748B';ctx.fillText(it.l,ix+22,legY);});
+  },[project,selectedId]);
+  useEffect(()=>{draw();},[draw]);
+  const getXY=e=>{const r=cvRef.current.getBoundingClientRect();return[(e.clientX-r.left)*cvRef.current.width/r.width,(e.clientY-r.top)*cvRef.current.height/r.height];};
+  const hit=(cx,cy)=>{
+    let best=null,bd=16;
+    for(const[id,h] of Object.entries(hitMap.current)){
+      if(Math.abs(cy-h.y)<(h.h||10)/2+5&&Math.abs(cx-h.x)<(h.w||20)/2+5){const d=Math.hypot(cx-h.x,cy-h.y);if(d<bd){bd=d;best=id;}}
+    }
+    onSelect(best);
+  };
+  return(
+    <div>
+      <canvas ref={cvRef} width={1000} height={520}
+        style={{width:'100%',height:'auto',cursor:'pointer',borderRadius:8,border:'1px solid #E2E8F0'}}
+        onClick={e=>{const[x,y]=getXY(e);hit(x,y);}}
+        onTouchEnd={e=>{e.preventDefault();const t=e.changedTouches[0];const[x,y]=getXY(t);hit(x,y);}}/>
+      <div className="flex gap-4 mt-2 text-xs text-gray-500 justify-center flex-wrap">
+        <span>🔵 Zona azul = Terças de Cobertura</span>
+        <span>🟡 Zona amarela = Terças de Fechamento</span>
+        <span>Clique/toque em qualquer linha ou pilar para selecionar</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ PLANTA 2D ═══════════════ */
+function Planta2D({project,selectedId,onSelect}){
+  const cvRef=useRef(null);
+  const hitMap=useRef({});
+  const draw=useCallback(()=>{
+    const cv=cvRef.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height;
+    const{config:cfg,elements:els}=project;
+    const{eixos,vaos=1}=cfg;
+    const PL=55,PR=20,PT=45,PB=45;
+    const aW=W-PL-PR,aH=H-PT-PB;
+    const sX=eixos>1?aW/(eixos-1):aW,sY=aH/vaos;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#F8FAFC';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#374151';ctx.lineWidth=2;ctx.strokeRect(PL,PT,aW,aH);
+    hitMap.current={};
+    for(let e=1;e<=eixos;e++){
+      const x=PL+(e-1)*sX;
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#CBD5E1';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+aH);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#475569';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}`,x,PT-8);
+    }
+    Object.values(els).filter(e=>e.type==='tesoura').forEach(el=>{
+      const x=PL+(el.axis-1)*sX,y0=PT+(el.vao-1)*sY,y1=y0+sY,sel=el.id===selectedId;
+      ctx.beginPath();ctx.setLineDash([5,3]);
+      ctx.strokeStyle=sel?'#1D4ED8':SCOR[el.status];ctx.lineWidth=sel?4:3;
+      ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();ctx.setLineDash([]);
+      if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();ctx.setLineDash([]);}
+      hitMap.current[el.id]={x,y:(y0+y1)/2,w:12,h:y1-y0};
+    });
+    const R=Math.max(7,Math.min(11,sX*0.15));
+    Object.values(els).filter(e=>e.type==='pilar').forEach(el=>{
+      const x=PL+(el.axis-1)*sX,y=PT+el.linha*sY,sel=el.id===selectedId;
+      if(sel){ctx.beginPath();ctx.arc(x,y,R+4,0,Math.PI*2);ctx.fillStyle='#BFDBFE';ctx.fill();}
+      ctx.beginPath();ctx.arc(x,y,R,0,Math.PI*2);
+      ctx.fillStyle=SCOR[el.status];ctx.fill();
+      ctx.strokeStyle=sel?'#1D4ED8':'#374151';ctx.lineWidth=sel?2.5:1.5;ctx.stroke();
+      hitMap.current[el.id]={x,y,r:R+6};
+    });
+    ctx.fillStyle='#6B7280';ctx.font='10px sans-serif';ctx.textAlign='right';
+    ctx.fillText('L.Esq.',PL-4,PT+6);ctx.fillText('L.Dir.',PL-4,PT+aH+4);
+  },[project,selectedId]);
+  useEffect(()=>{draw();},[draw]);
+  const getXY=e=>{const r=cvRef.current.getBoundingClientRect();return[(e.clientX-r.left)*cvRef.current.width/r.width,(e.clientY-r.top)*cvRef.current.height/r.height];};
+  const hit=(cx,cy)=>{
+    let best=null,bd=18;
+    for(const[id,h] of Object.entries(hitMap.current)){
+      if(h.r){const d=Math.hypot(cx-h.x,cy-h.y);if(d<=h.r&&d<bd){bd=d;best=id;}}
+      else if(Math.abs(cy-h.y)<(h.h||10)/2+5&&Math.abs(cx-h.x)<(h.w||10)/2+5){best=id;break;}
+    }
+    onSelect(best);
+  };
+  return(
+    <div>
+      <canvas ref={cvRef} width={900} height={300}
+        style={{width:'100%',height:'auto',cursor:'pointer',borderRadius:8,border:'1px solid #E2E8F0'}}
+        onClick={e=>{const[x,y]=getXY(e);hit(x,y);}}
+        onTouchEnd={e=>{e.preventDefault();const t=e.changedTouches[0];const[x,y]=getXY(t);hit(x,y);}}/>
+      <div className="mt-1 text-xs text-gray-400 text-center">Círculos = Pilares · Linhas tracejadas = Tesouras · Clique para selecionar</div>
+    </div>
+  );
+}
+
+/* ═══════════════ VISTA 3D ═══════════════ */
+function Vista3D({project}){
+  const mountRef=useRef(null);
+  const threeRef=useRef(null);
+  const builtFor=useRef(null);
+  const buildScene=useCallback(()=>{
+    const container=mountRef.current;
+    if(!container||!window.THREE)return;
+    const{THREE}=window;
+    const W=container.clientWidth||600,H=420;
+    if(threeRef.current){threeRef.current.renderer.dispose();if(container.contains(threeRef.current.renderer.domElement))container.removeChild(threeRef.current.renderer.domElement);}
+    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setSize(W,H);renderer.setPixelRatio(window.devicePixelRatio);renderer.shadowMap.enabled=true;
+    container.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();scene.background=new THREE.Color(0xEFF6FF);
+    const camera=new THREE.PerspectiveCamera(50,W/H,0.1,500);
+    camera.position.set(25,18,25);camera.lookAt(0,4,0);
+    scene.add(new THREE.AmbientLight(0xffffff,0.7));
+    const dl=new THREE.DirectionalLight(0xffffff,0.7);dl.position.set(20,30,20);dl.castShadow=true;scene.add(dl);
+    const controls=new THREE.OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=true;controls.dampingFactor=0.05;controls.minDistance=3;controls.maxDistance=120;controls.maxPolarAngle=Math.PI/2+0.1;
+    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0xD1FAE5}));
+    gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;scene.add(gnd);
+    const{config:cfg,elements:els}=project;
+    const{eixos,vaos=1,aguas=2}=cfg;
+    const spX=parseFloat(cfg.vaoComprimento)||6,spZ=parseFloat(cfg.largura)||20;
+    const hC=parseFloat(cfg.alturaColuna)||8,hR=hC*0.35;
+    const meshMap={};
+    const mat=c=>new THREE.MeshLambertMaterial({color:c});
+    const hex=s=>parseInt(SCOR[s].slice(1),16);
+    Object.values(els).filter(e=>e.type==='pilar').forEach(el=>{
+      const x=(el.axis-1)*spX-(eixos-1)*spX/2,z=el.linha*(spZ/vaos)-spZ/2;
+      const m=new THREE.Mesh(new THREE.BoxGeometry(0.35,hC,0.35),mat(hex(el.status)));
+      m.position.set(x,hC/2,z);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
+    });
+    for(let e=1;e<=eixos;e++){
+      for(let v=1;v<=vaos;v++){
+        const id=`TS_E${e}_V${v}`,el=els[id];if(!el)continue;
+        const x=(e-1)*spX-(eixos-1)*spX/2,z0=-spZ/2+(v-1)*(spZ/vaos),z1=z0+spZ/vaos,zM=(z0+z1)/2;
+        const pts=[new THREE.Vector3(x,hC,z0),aguas===2?new THREE.Vector3(x,hC+hR,zM):new THREE.Vector3(x,hC+hR,z1),new THREE.Vector3(x,hC,z1),new THREE.Vector3(x,0,z1),new THREE.Vector3(x,0,z0),new THREE.Vector3(x,hC,z0),new THREE.Vector3(x,0,z1),new THREE.Vector3(x,hC,z1),aguas===2?new THREE.Vector3(x,hC+hR,zM):new THREE.Vector3(x,hC+hR,z1),new THREE.Vector3(x,hC,z0),new THREE.Vector3(x,0,z0),new THREE.Vector3(x,hC,z0)];
+        const geo=new THREE.BufferGeometry().setFromPoints(pts);
+        const ln=new THREE.Line(geo,new THREE.LineBasicMaterial({color:hex(el.status),linewidth:2}));
+        scene.add(ln);meshMap[el.id]=ln;
+      }
+    }
+    Object.values(els).filter(e=>e.type==='tc').forEach(el=>{
+      const x0=(el.axisFrom-1)*spX-(eixos-1)*spX/2,x1=(el.axisTo-1)*spX-(eixos-1)*spX/2,cx=(x0+x1)/2;
+      const halfSpan=spZ/(vaos*2),frac=el.pos/(cfg.nTC+1);
+      const zTC=el.agua===1?-halfSpan+frac*halfSpan:halfSpan-frac*halfSpan;
+      const yTC=hC+hR*(1-(Math.abs(zTC)/halfSpan));
+      const m=new THREE.Mesh(new THREE.BoxGeometry(spX,0.12,0.12),mat(hex(el.status)));
+      m.position.set(cx,Math.max(hC,yTC),zTC);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
+    });
+    Object.values(els).filter(e=>e.type==='tf').forEach(el=>{
+      const x0=(el.axisFrom-1)*spX-(eixos-1)*spX/2,x1=(el.axisTo-1)*spX-(eixos-1)*spX/2,cx=(x0+x1)/2;
+      const zTF=el.side==='LE'?-spZ/2:spZ/2,yTF=hC*(1-el.pos/(cfg.nTF+1));
+      const m=new THREE.Mesh(new THREE.BoxGeometry(spX,0.12,0.12),mat(hex(el.status)));
+      m.position.set(cx,Math.max(0.1,yTF),zTF);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
+    });
+    if(aguas===2){
+      const hw=spZ/2,sl=Math.sqrt(hw**2+hR**2);
+      for(let e=1;e<eixos;e++){
+        const x0=(e-1)*spX-(eixos-1)*spX/2,cx=x0+spX/2;
+        [-1,1].forEach(sign=>{
+          const m=new THREE.Mesh(new THREE.PlaneGeometry(spX,sl),new THREE.MeshLambertMaterial({color:0xE2E8F0,transparent:true,opacity:0.25,side:THREE.DoubleSide}));
+          m.position.set(cx,hC+hR/2,sign*hw/2);m.rotation.x=-sign*(Math.PI/2-Math.atan2(hR,hw));scene.add(m);
+        });
+      }
+    }
+    threeRef.current={renderer,scene,camera,controls,meshMap};builtFor.current=project.id;
+    let raf;const loop=()=>{raf=requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);};loop();
+    const onResize=()=>{const nW=container.clientWidth;camera.aspect=nW/H;camera.updateProjectionMatrix();renderer.setSize(nW,H);};
+    window.addEventListener('resize',onResize);threeRef.current.cleanup=()=>{cancelAnimationFrame(raf);window.removeEventListener('resize',onResize);};
+  },[project.id]);
+  useEffect(()=>{buildScene();return()=>{if(threeRef.current?.cleanup)threeRef.current.cleanup();};},[buildScene]);
+  useEffect(()=>{
+    if(!threeRef.current||builtFor.current!==project.id)return;
+    const{meshMap,renderer,scene,camera}=threeRef.current;
+    Object.values(project.elements).forEach(el=>{const m=meshMap[el.id];if(!m)return;const c=parseInt(SCOR[el.status].slice(1),16);if(m.material)m.material.color.setHex(c);});
+    renderer.render(scene,camera);
+  },[project.elements,project.id]);
+  return(
+    <div>
+      <div ref={mountRef} style={{width:'100%',borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0'}}/>
+      <div className="mt-1 text-xs text-gray-400 text-center">Arraste para girar · Scroll para zoom · Clique direito para mover</div>
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL DE ELEMENTO ═══════════════ */
+function ModalElemento({element,onClose,onUpdate,canEdit=true}){
+  const[op,setOp]=useState('');
+  const save=s=>{
+    if(!op.trim()){alert('Informe o nome do responsável.');return;}
+    onUpdate(element.id,s,{ts:new Date().toISOString(),operator:op.trim(),from:element.status,to:s});
+    onClose();
+  };
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <span className="text-xs font-bold uppercase text-gray-400 tracking-widest">{TLAB[element.type]}</span>
+            <h3 className="text-lg font-bold text-gray-800">{element.label}</h3>
+            <div className="mt-1 px-2 py-1 bg-blue-50 rounded-lg inline-block">
+              <span className="addr text-blue-700 text-sm font-bold">{element.addr}</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-3">×</button>
+        </div>
+        <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{background:SCOR[element.status]+'22'}}>
+          <span className="ldot" style={{background:SCOR[element.status]}}/>
+          <span className="font-semibold text-gray-700">{SLAB[element.status]}</span>
+        </div>
+        {canEdit?(
+          <>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+            <input value={op} onChange={e=>setOp(e.target.value)} placeholder="Nome do encarregado / operador"
+              autoFocus className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <div className="space-y-2">
+              {SORD.map(s=>(
+                <button key={s} onClick={()=>save(s)} disabled={s===element.status}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all ${s===element.status?'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60':'border-gray-100 hover:border-blue-300 hover:bg-blue-50 bg-white'}`}>
+                  <span className="ldot" style={{background:SCOR[s]}}/>{SLAB[s]}
+                  {s===element.status&&<span className="ml-auto text-xs text-gray-400">✓ Atual</span>}
+                </button>
+              ))}
+            </div>
+          </>
+        ):(
+          <div className="bg-blue-50 rounded-xl p-3 text-sm text-blue-700 text-center">
+            👁️ Modo visualização — apenas leitura
+          </div>
+        )}
+        {element.history?.length>0&&(
+          <div className="mt-4 pt-3 border-t">
+            <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Últimos apontamentos</p>
+            {[...toArr(element.history)].reverse().slice(0,5).map((h,i)=>(
+              <div key={i} className="text-xs text-gray-600 mb-1 flex gap-2">
+                <span className="text-gray-400 shrink-0">{new Date(h.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+                <span className="font-medium">{h.operator}</span>
+                <span style={{color:SCOR[h.to]}} className="font-bold">{SLAB[h.to]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ APONTAMENTO EM LOTE ═══════════════ */
+function ApontamentoLote({project,onUpdate}){
+  const[type,setType]=useState('tc');
+  const[af,setAf]=useState(1);
+  const[at,setAt]=useState(5);
+  const[side,setSide]=useState('todos');
+  const[ns,setNs]=useState(S.L);
+  const[op,setOp]=useState('');
+  const{eixos}=project.config;
+  const apply=()=>{
+    if(!op.trim()){alert('Informe o nome do responsável.');return;}
+    const ts=new Date().toISOString(),upd={};
+    Object.values(project.elements).forEach(el=>{
+      if(el.type!==type)return;
+      const ax=el.type==='pilar'?el.axis:el.axisFrom;
+      if(ax<af||ax>at)return;
+      if(side!=='todos'){
+        if(el.type==='tc'&&String(el.agua)!==side)return;
+        if(el.type==='tf'&&el.side!==side)return;
+        if(el.type==='pilar'&&el.side!==side)return;
+      }
+      upd[el.id]={status:ns,entry:{ts,operator:op.trim(),from:el.status,to:ns}};
+    });
+    const n=Object.keys(upd).length;
+    if(n===0){alert('Nenhum elemento com esses filtros.');return;}
+    if(window.confirm(`Atualizar ${n} elemento(s) para "${SLAB[ns]}"?`))onUpdate(upd);
+  };
+  const sideOpts={pilar:[{v:'todos',l:'Todos'},{v:'LE',l:'L.Esquerda'},{v:'LD',l:'L.Direita'}],tesoura:[{v:'todos',l:'Todos'}],tc:[{v:'todos',l:'Todas'},{v:'1',l:'Água 1'},{v:'2',l:'Água 2'}],tf:[{v:'todos',l:'Ambas'},{v:'LE',l:'L.Esquerda'},{v:'LD',l:'L.Direita'}]};
+  return(
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <p className="text-sm font-bold text-amber-800 mb-3">⚡ Apontamento em Lote</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Tipo</label>
+          <select value={type} onChange={e=>setType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            <option value="pilar">Pilares</option><option value="tesoura">Tesouras</option>
+            <option value="tc">Terças Cob.</option><option value="tf">Terças Fech.</option>
+          </select></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Eixo início</label>
+          <input type="number" value={af} min={1} max={eixos} onChange={e=>setAf(+e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"/></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Eixo fim</label>
+          <input type="number" value={at} min={1} max={eixos} onChange={e=>setAt(+e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"/></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Lado/Água</label>
+          <select value={side} onChange={e=>setSide(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            {(sideOpts[type]||sideOpts.pilar).map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+          </select></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Status</label>
+          <select value={ns} onChange={e=>setNs(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            {SORD.map(s=><option key={s} value={s}>{SLAB[s]}</option>)}
+          </select></div>
+      </div>
+      <div className="flex gap-2">
+        <input value={op} onChange={e=>setOp(e.target.value)} placeholder="Responsável pelo apontamento" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"/>
+        <button onClick={apply} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 whitespace-nowrap">Aplicar Lote</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ HISTÓRICO ═══════════════ */
+function Historico({elements}){
+  const hist=useMemo(()=>{
+    const r=[];
+    Object.values(elements).forEach(el=>toArr(el.history).forEach(h=>r.push({...h,elLabel:el.label,elAddr:el.addr,elType:el.type})));
+    return r.sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,150);
+  },[elements]);
+  if(!hist.length)return(<div className="text-center text-gray-400 py-10"><div className="text-4xl mb-2">📋</div><p>Nenhum apontamento registrado ainda</p></div>);
+  return(
+    <div className="space-y-1.5">
+      {hist.map((h,i)=>(
+        <div key={i} className="flex gap-3 items-start p-3 bg-white rounded-xl border border-gray-100">
+          <span className="ldot mt-0.5" style={{background:SCOR[h.to]}}/>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-2">
+              <span className="addr text-blue-600 text-xs font-bold">{h.elAddr}</span>
+              <span className="text-xs text-gray-400 shrink-0">{new Date(h.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              <span className="font-semibold text-gray-700">{h.operator}</span>
+              <span className="mx-1">→</span>
+              <span style={{color:SCOR[h.to]}} className="font-bold">{SLAB[h.to]}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════ PAINEL DE PROJETO ═══════════════ */
+function PainelProjeto({project,role='viewer',onBack,onUpdate}){
+  const[tab,setTab]=useState('lateral');
+  const[selId,setSelId]=useState(null);
+  const[showLote,setShowLote]=useState(false);
+  const[showConfig,setShowConfig]=useState(false);
+  const selEl=selId?project.elements[selId]:null;
+  const stats=useMemo(()=>calcStats(project.elements),[project.elements]);
+  const canEdit=role==='apontador'||role==='admin';
+  const isAdmin=role==='admin';
+
+  const handleEditConfig=(newName,newCfg)=>{
+    const newEls=gerarElementos(newCfg);
+    const old=project.elements;
+    Object.keys(newEls).forEach(id=>{if(old[id]){newEls[id].status=old[id].status;newEls[id].history=toArr(old[id].history);}});
+    onUpdate({...project,name:newName,config:newCfg,elements:newEls});
+    setShowConfig(false);
+  };
+
+  const update=(id,ns,entry)=>{
+    const el=project.elements[id];
+    onUpdate({...project,elements:{...project.elements,[id]:{...el,status:ns,history:[...toArr(el.history),entry]}}});
+  };
+
+  const bulkUpdate=upd=>{
+    const newEls={...project.elements};
+    Object.entries(upd).forEach(([id,u])=>{
+      const el=newEls[id];
+      newEls[id]={...el,status:u.status,history:[...toArr(el.history),u.entry]};
+    });
+    onUpdate({...project,elements:newEls});
+  };
+
+  const pct=stats.pct;
+  const barClr=pct===100?'#22C55E':pct>60?'#3B82F6':pct>30?'#F97316':'#FBBF24';
+  const tabs=[{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'3d',l:'3D'},{id:'hist',l:'Histórico'}];
+  const roleBadge={viewer:{l:'👁️ Visitante',c:'bg-gray-100 text-gray-600'},apontador:{l:'✏️ Apontador',c:'bg-amber-100 text-amber-700'},admin:{l:'⚙️ Gestor',c:'bg-blue-100 text-blue-700'}};
+  const badge=roleBadge[role];
+
+  return(
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-3 py-3 flex items-center gap-2">
+          <button onClick={onBack} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 text-xl leading-none">←</button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-bold text-gray-900 truncate text-base sm:text-lg">{project.name}</h1>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.c}`}>{badge.l}</span>
+            </div>
+            <p className="text-xs text-gray-500">{project.config.eixos} eixos · {project.config.vaos} nave · {project.config.aguas} águas · {stats.tot} elementos</p>
+          </div>
+          {isAdmin&&<button onClick={()=>setShowConfig(true)} title="Configurações da obra" className="p-2 rounded-lg hover:bg-gray-100 text-gray-400" style={{fontSize:'20px'}}>⚙️</button>}
+          <div className="text-right shrink-0">
+            <div className="font-extrabold text-2xl leading-none" style={{color:barClr}}>{pct}%</div>
+            <div className="text-xs text-gray-400">concluído</div>
+          </div>
+        </div>
+        <div className="max-w-5xl mx-auto px-3 pb-2">
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden flex">
+            {SORD.slice(1).map(s=>{const w=stats.tot>0?(stats.byS[s]||0)/stats.tot*100:0;return w>0?<div key={s} style={{width:`${w}%`,background:SCOR[s]}} title={`${SLAB[s]}: ${stats.byS[s]||0}`}/>:null;})}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-3 pt-3 pb-8">
+        <div className="grid grid-cols-5 gap-1.5 mb-3">
+          {SORD.map(s=>(
+            <div key={s} className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+              <div className="font-bold text-lg leading-tight" style={{color:SCOR[s]}}>{stats.byS[s]||0}</div>
+              <div className="text-xs text-gray-500 leading-tight mt-0.5 hidden sm:block">{SLAB[s]}</div>
+              <span className="ldot w-2 h-2 sm:hidden mt-1 inline-block" style={{background:SCOR[s]}}/>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-1.5 mb-3">
+          {['pilar','tesoura','tc','tf'].map(t=>{
+            const tot=Object.values(project.elements).filter(e=>e.type===t).length;
+            const done=Object.values(project.elements).filter(e=>e.type===t&&e.status===S.C).length;
+            const p=tot>0?Math.round(done/tot*100):0;
+            return(
+              <div key={t} className="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">{TLABP[t]}</span>
+                  <span className="text-xs font-bold text-green-600">{p}%</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{width:`${p}%`}}/>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">{done}/{tot}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mb-3">
+          <BuscaEndereco elements={project.elements} onSelect={id=>{setSelId(id);}}/>
+        </div>
+
+        {canEdit&&(
+          <div className="mb-3">
+            <button onClick={()=>setShowLote(v=>!v)} className="text-sm font-medium text-amber-700 hover:text-amber-800 underline decoration-dashed">
+              {showLote?'▲ Ocultar apontamento em lote':'▼ Apontamento em lote (por faixa de eixos)'}
+            </button>
+            {showLote&&<div className="mt-2"><ApontamentoLote project={project} onUpdate={bulkUpdate}/></div>}
+          </div>
+        )}
+
+        <div className="bg-white rounded-t-xl border-b border-gray-200 flex overflow-x-auto">
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-3 text-sm whitespace-nowrap ${tab===t.id?'tab-on':'tab-off'}`}>{t.l}</button>
+          ))}
+        </div>
+        <div className="bg-white rounded-b-xl shadow-sm p-3 sm:p-4">
+          {tab!=='hist'&&(
+            <div className="flex flex-wrap gap-3 mb-3 pb-3 border-b border-gray-100">
+              {SORD.map(s=>(
+                <div key={s} className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <span className="ldot" style={{background:SCOR[s]}}/>{SLAB[s]}
+                </div>
+              ))}
+            </div>
+          )}
+          {tab==='lateral'&&<VistaLateral project={project} selectedId={selId} onSelect={setSelId}/>}
+          {tab==='planta'&&<Planta2D project={project} selectedId={selId} onSelect={setSelId}/>}
+          {tab==='3d'&&<Vista3D project={project}/>}
+          {tab==='hist'&&<Historico elements={project.elements}/>}
+        </div>
+      </div>
+
+      {selEl&&<ModalElemento element={selEl} onClose={()=>setSelId(null)} onUpdate={update} canEdit={canEdit}/>}
+      {showConfig&&<ModalEditarConfig project={project} onClose={()=>setShowConfig(false)} onSave={handleEditConfig}/>}
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL EDITAR CONFIG ═══════════════ */
+function ModalEditarConfig({project,onClose,onSave}){
+  const cfg=project.config;
+  const[f,setF]=useState({name:project.name,eixos:cfg.eixos,vaos:cfg.vaos||1,aguas:cfg.aguas||2,nTC:cfg.nTC||5,nTF:cfg.nTF||4,vaoComprimento:cfg.vaoComprimento||6,largura:cfg.largura||18,alturaColuna:cfg.alturaColuna||8});
+  const[err,setErr]=useState({});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const validate=()=>{const e={};if(!f.name.trim())e.name='Obrigatório';if(f.eixos<2||f.eixos>60)e.eixos='2 a 60';if(f.nTC<1||f.nTC>20)e.nTC='1 a 20';if(f.nTF<1||f.nTF>20)e.nTF='1 a 20';setErr(e);return Object.keys(e).length===0;};
+  const salvar=()=>{if(!validate())return;const newCfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};onSave(f.name.trim(),newCfg);};
+  const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
+  const F=({lbl,k,type='number',min,max})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label><input type={type} value={f[k]} min={min} max={max} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[95vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">⚙️ Configurações da Obra</h2><button onClick={onClose} className="text-gray-400 text-2xl">×</button></div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4"><p className="text-xs text-amber-800 font-medium">⚠️ Ao alterar a estrutura, os elementos são regenerados. Status já apontados são preservados para elementos que continuam existindo.</p></div>
+        <div className="space-y-4">
+          <F lbl="Nome da Obra" k="name" type="text"/>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estrutura</p>
+            <div className="grid grid-cols-2 gap-3"><F lbl="Eixos (transversais)" k="eixos" min={2} max={60}/><F lbl="Vãos (naves)" k="vaos" min={1} max={5}/></div>
+            <div className="mt-3"><label className="block text-sm font-medium text-gray-700 mb-0.5">Número de Águas</label><select value={f.aguas} onChange={e=>set('aguas',+e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value={1}>1 Água</option><option value={2}>2 Águas</option></select></div>
+          </div>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Terças</p><div className="grid grid-cols-2 gap-3"><F lbl="Terças Cobertura / vão / água" k="nTC" min={1} max={20}/><F lbl="Terças Fechamento / vão / face" k="nTF" min={1} max={20}/></div></div>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dimensões (metros)</p><div className="grid grid-cols-3 gap-3"><F lbl="Espaç. entre Eixos" k="vaoComprimento" min={1} max={20}/><F lbl="Largura do Vão" k="largura" min={5} max={80}/><F lbl="Altura Colunas" k="alturaColuna" min={2} max={25}/></div></div>
+        </div>
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl"><p className="text-sm font-bold text-blue-800 mb-2">Resumo da nova estrutura</p>
+          <div className="grid grid-cols-2 gap-1 text-sm">{[['Pilares',tot.p],['Tesouras',tot.ts],['Terças Cobertura',tot.tco],['Terças Fechamento',tot.tfe]].map(([l,v])=>(<React.Fragment key={l}><span className="text-gray-600">{l}:</span><span className="font-bold">{v}</span></React.Fragment>))}<span className="text-gray-700 font-bold">TOTAL:</span><span className="font-extrabold text-blue-700 text-base">{tot.total} elementos</span></div>
+          <p className="text-xs text-gray-500 mt-2">Comprimento ~{((+f.eixos-1)*(+f.vaoComprimento)).toFixed(0)}m · Largura {(+f.largura*(+f.vaos||1)).toFixed(0)}m</p>
+        </div>
+        <div className="flex gap-3 mt-4"><button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium">Cancelar</button><button onClick={salvar} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold shadow-lg">Salvar ✓</button></div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL NOVA OBRA ═══════════════ */
+function ModalNovaObra({onClose,onCreate}){
+  const[f,setF]=useState({name:'',codigo:'',eixos:17,vaos:1,aguas:2,nTC:5,nTF:4,vaoComprimento:6,largura:18,alturaColuna:8});
+  const[err,setErr]=useState({});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const validate=()=>{
+    const e={};
+    if(!f.name.trim())e.name='Obrigatório';
+    if(!f.codigo.trim())e.codigo='Obrigatório';
+    if(!/^[A-Z0-9_-]{3,20}$/i.test(f.codigo.trim()))e.codigo='3-20 chars, somente letras/números/-_';
+    if(f.eixos<2||f.eixos>60)e.eixos='2 a 60';
+    if(f.nTC<1||f.nTC>20)e.nTC='1 a 20';
+    if(f.nTF<1||f.nTF>20)e.nTF='1 a 20';
+    setErr(e);return Object.keys(e).length===0;
+  };
+  const criar=async()=>{
+    if(!validate())return;
+    const code=f.codigo.trim().toUpperCase();
+    // Verifica se código já existe
+    if(db){
+      const snap=await db.ref(`/obras/${code}/name`).once('value');
+      if(snap.val()){setErr(e=>({...e,codigo:'Este código já está em uso.'}));return;}
+    }
+    const cfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};
+    const elements=gerarElementos(cfg);
+    onCreate({code,name:f.name.trim(),config:cfg,elements,createdAt:new Date().toISOString()});
+  };
+  const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
+  const F=({lbl,k,type='number',note,min,max,placeholder})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label>{note&&<p className="text-xs text-gray-400 mb-1">{note}</p>}<input type={type} value={f[k]} min={min} max={max} placeholder={placeholder} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[95vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">🏗️ Nova Obra</h2><button onClick={onClose} className="text-gray-400 text-2xl">×</button></div>
+        <div className="space-y-4">
+          <F lbl="Nome da Obra" k="name" type="text" note="Ex: Galpão Belém, Obra Manaus-01"/>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Acesso Online</p>
+            <F lbl="Código da Obra" k="codigo" type="text" note="Código único para acessar. Ex: BELEM2025" placeholder="BELEM2025"/>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estrutura</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="Eixos" k="eixos" min={2} max={60} note="Ao longo do comprimento"/>
+              <F lbl="Vãos (naves)" k="vaos" min={1} max={5} note="1 = nave única"/>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-0.5">Número de Águas</label><select value={f.aguas} onChange={e=>set('aguas',+e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value={1}>1 Água</option><option value={2}>2 Águas</option></select></div>
+              <div/>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Terças</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="Terças Cob. / vão / água" k="nTC" min={1} max={20}/>
+              <F lbl="Terças Fech. / vão / face" k="nTF" min={1} max={20}/>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dimensões (metros)</p>
+            <div className="grid grid-cols-3 gap-3">
+              <F lbl="Espaç. Eixos" k="vaoComprimento" min={1} max={20}/>
+              <F lbl="Largura Vão" k="largura" min={5} max={80}/>
+              <F lbl="Altura Colunas" k="alturaColuna" min={2} max={25}/>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl"><p className="text-sm font-bold text-blue-800 mb-2">Resumo do Galpão</p>
+          <div className="grid grid-cols-2 gap-1 text-sm">{[['Pilares',tot.p],['Tesouras',tot.ts],['Terças Cobertura',tot.tco],['Terças Fechamento',tot.tfe]].map(([l,v])=>(<React.Fragment key={l}><span className="text-gray-600">{l}:</span><span className="font-bold">{v}</span></React.Fragment>))}<span className="text-gray-700 font-bold col-span-1">TOTAL:</span><span className="font-extrabold text-blue-700 text-base">{tot.total} elementos</span></div>
+        </div>
+        <div className="flex gap-3 mt-4"><button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium">Cancelar</button><button onClick={criar} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold shadow-lg">Criar Obra ✓</button></div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ TELA DE LOGIN ═══════════════ */
+function LoginScreen({onLogin,onNew}){
+  const[code,setCode]=useState('');
+  const[error,setError]=useState('');
+  const[loading,setLoading]=useState(false);
+
+  const buscar=async()=>{
+    const c=code.trim().toUpperCase();
+    if(!c){setError('Digite o código da obra.');return;}
+    setLoading(true);setError('');
+    try{
+      const snap=await db.ref(`/obras/${c}`).once('value');
+      const data=snap.val();
+      if(!data){setError('Obra não encontrada. Verifique o código ou crie uma nova obra.');setLoading(false);return;}
+      onLogin(c,'admin',data);
+    }catch(e){setError('Erro de conexão. Verifique sua internet.');}
+    setLoading(false);
+  };
+
+  if(!FIREBASE_OK){
+    return(
+      <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+          <div className="text-center mb-6"><div className="text-5xl mb-3">🏗️</div><h1 className="text-2xl font-extrabold text-gray-900">GalpãoTrack</h1></div>
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6">
+            <p className="font-bold text-amber-800 mb-2">⚠️ Firebase não configurado</p>
+            <p className="text-sm text-amber-700">Para usar online, edite o arquivo <code className="bg-amber-100 px-1 rounded">index.html</code> e substitua os valores de <strong>FIREBASE_CONFIG</strong> com as credenciais do seu projeto Firebase.</p>
+          </div>
+          <ol className="text-sm text-gray-600 space-y-2 list-decimal pl-4">
+            <li>Acesse <strong>console.firebase.google.com</strong></li>
+            <li>Crie um projeto → Adicione um app Web (<code className="bg-gray-100 px-1 rounded">&lt;/&gt;</code>)</li>
+            <li>Copie o <code className="bg-gray-100 px-1 rounded">firebaseConfig</code></li>
+            <li>Ative o <strong>Realtime Database</strong> em modo teste</li>
+            <li>Cole o config no topo do <code className="bg-gray-100 px-1 rounded">index.html</code></li>
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-8 text-center text-white relative">
+          <a href="https://eng-zabotti.github.io/comercialgerdaubelem/" target="_blank"
+            className="absolute top-3 left-3 flex items-center gap-1 text-blue-200 hover:text-white text-xs font-medium bg-blue-800/40 hover:bg-blue-800/70 px-2 py-1 rounded-lg transition-all">
+            ← Dashboard
+          </a>
+          <div className="text-5xl mb-2">🏗️</div>
+          <h1 className="text-2xl font-extrabold">GalpãoTrack</h1>
+          <p className="text-blue-200 text-sm mt-1">Controle de Lixamento e Pintura</p>
+        </div>
+
+        <div className="p-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Código da Obra</label>
+          <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}
+            onKeyDown={e=>e.key==='Enter'&&buscar()}
+            placeholder="Ex: BELEM2025"
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-blue-500 uppercase"/>
+          {error&&<p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+          <button onClick={buscar} disabled={loading}
+            className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 disabled:opacity-60">
+            {loading?'Buscando...':'Acessar Obra →'}
+          </button>
+          <div className="mt-4 text-center">
+            <button onClick={onNew} className="text-sm text-blue-600 hover:underline font-medium">+ Criar nova obra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ APP ROOT ═══════════════ */
+function App(){
+  const[view,setView]=useState('login');       // login | project | loading
+  const[obraCode,setObraCode]=useState('');
+  const[project,setProject]=useState(null);
+  const[role,setRole]=useState('viewer');
+  const[showNew,setShowNew]=useState(false);
+
+  // Real-time listener Firebase
+  useEffect(()=>{
+    if(!db||!obraCode||view!=='project')return;
+    const ref=db.ref(`/obras/${obraCode}`);
+    ref.on('value',snap=>{
+      const raw=snap.val();
+      if(raw)setProject(normProject(raw));
+    });
+    return()=>ref.off('value');
+  },[obraCode,view]);
+
+  const handleLogin=(code,userRole,data)=>{
+    setObraCode(code);
+    setRole(userRole);
+    setProject(normProject(data));
+    setView('project');
+  };
+
+  const updateProject=p=>{
+    setProject(p); // Atualização otimista local
+    if(db)db.ref(`/obras/${obraCode}`).set(p);
+  };
+
+  const createProject=async(p)=>{
+    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt};
+    if(db)await db.ref(`/obras/${p.code}`).set(obraObj);
+    setShowNew(false);
+    handleLogin(p.code,'admin',obraObj);
+  };
+
+  if(view==='project'&&project){
+    return<PainelProjeto project={project} role={role} onBack={()=>setView('login')} onUpdate={updateProject}/>;
+  }
+
+  return(
+    <>
+      <LoginScreen onLogin={handleLogin} onNew={()=>setShowNew(true)}/>
+      {showNew&&<ModalNovaObra onClose={()=>setShowNew(false)} onCreate={createProject}/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
