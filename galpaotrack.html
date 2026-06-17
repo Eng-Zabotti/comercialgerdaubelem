@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
@@ -26,7 +26,10 @@ canvas{display:block;}
 </head>
 <body>
 <div id="root"></div>
-<script type="text/babel">
+<script>
+Babel.registerPreset('react-classic',{presets:[[Babel.availablePresets['react'],{runtime:'classic'}]]});
+</script>
+<script type="text/babel" data-presets="react-classic,env">
 const {useState,useEffect,useRef,useCallback,useMemo}=React;
 
 /* ═══════════════ CONSTANTES ═══════════════ */
@@ -601,7 +604,6 @@ function Historico({elements}){
     </div>
   );
 }
-
 /* ═══════════════ PAINEL DE PROJETO ═══════════════ */
 function PainelProjeto({project,role='viewer',onBack,onUpdate}){
   const[tab,setTab]=useState('lateral');
@@ -650,6 +652,7 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-bold text-gray-900 truncate text-base sm:text-lg">{project.name}</h1>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.c}`}>{badge.l}</span>
+              <span className="text-xs font-semibold text-gray-500">{pct}% concluído</span>
             </div>
             <p className="text-xs text-gray-500">{project.config.eixos} eixos · {project.config.vaos} nave · {project.config.aguas} águas · {stats.tot} elementos</p>
           </div>
@@ -769,7 +772,7 @@ function ModalEditarConfig({project,onClose,onSave}){
 
 /* ═══════════════ MODAL NOVA OBRA ═══════════════ */
 function ModalNovaObra({onClose,onCreate}){
-  const[f,setF]=useState({name:'',codigo:'',eixos:17,vaos:1,aguas:2,nTC:5,nTF:4,vaoComprimento:6,largura:18,alturaColuna:8});
+  const[f,setF]=useState({name:'',codigo:'',pinAdmin:'',pinApontador:'',eixos:17,vaos:1,aguas:2,nTC:5,nTF:4,vaoComprimento:6,largura:18,alturaColuna:8});
   const[err,setErr]=useState({});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const validate=()=>{
@@ -792,7 +795,7 @@ function ModalNovaObra({onClose,onCreate}){
     }
     const cfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};
     const elements=gerarElementos(cfg);
-    onCreate({code,name:f.name.trim(),config:cfg,elements,createdAt:new Date().toISOString()});
+    onCreate({code,name:f.name.trim(),config:cfg,elements,createdAt:new Date().toISOString(),pinAdmin:f.pinAdmin||'',pinApontador:f.pinApontador||''});
   };
   const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
   const F=({lbl,k,type='number',note,min,max,placeholder})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label>{note&&<p className="text-xs text-gray-400 mb-1">{note}</p>}<input type={type} value={f[k]} min={min} max={max} placeholder={placeholder} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
@@ -805,6 +808,13 @@ function ModalNovaObra({onClose,onCreate}){
           <div className="border-t pt-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Acesso Online</p>
             <F lbl="Código da Obra" k="codigo" type="text" note="Código único para acessar. Ex: BELEM2025" placeholder="BELEM2025"/>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Senhas de Acesso (opcional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="PIN Gestor" k="pinAdmin" type="text" placeholder="Deixe em branco = livre"/>
+              <F lbl="PIN Apontador" k="pinApontador" type="text" placeholder="Deixe em branco = livre"/>
+            </div>
           </div>
           <div className="border-t pt-4">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estrutura</p>
@@ -845,6 +855,10 @@ function ModalNovaObra({onClose,onCreate}){
 /* ═══════════════ TELA DE LOGIN ═══════════════ */
 function LoginScreen({onLogin,onNew}){
   const[code,setCode]=useState('');
+  const[pin,setPin]=useState('');
+  const[step,setStep]=useState(1);
+  const[foundData,setFoundData]=useState(null);
+  const[foundCode,setFoundCode]=useState('');
   const[error,setError]=useState('');
   const[loading,setLoading]=useState(false);
 
@@ -856,9 +870,15 @@ function LoginScreen({onLogin,onNew}){
       const snap=await db.ref(`/obras/${c}`).once('value');
       const data=snap.val();
       if(!data){setError('Obra não encontrada. Verifique o código ou crie uma nova obra.');setLoading(false);return;}
-      onLogin(c,'admin',data);
+      setFoundData(data);setFoundCode(c);setStep(2);
     }catch(e){setError('Erro de conexão. Verifique sua internet.');}
     setLoading(false);
+  };
+
+  const entrar=(role)=>{
+    const reqPin=role==='admin'?foundData.pinAdmin:foundData.pinApontador;
+    if(reqPin&&pin.trim()!==reqPin.trim()){setError('PIN incorreto.');return;}
+    onLogin(foundCode,role,foundData);
   };
 
   if(!FIREBASE_OK){
@@ -882,19 +902,55 @@ function LoginScreen({onLogin,onNew}){
     );
   }
 
+  const headerCard=(
+    <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-8 text-center text-white relative">
+      <a href="https://eng-zabotti.github.io/comercialgerdaubelem/" target="_blank"
+        className="absolute top-3 left-3 flex items-center gap-1 text-blue-200 hover:text-white text-xs font-medium bg-blue-800/40 hover:bg-blue-800/70 px-2 py-1 rounded-lg transition-all">
+        ← Dashboard
+      </a>
+      <div className="text-5xl mb-2">🏗️</div>
+      <h1 className="text-2xl font-extrabold">GalpãoTrack</h1>
+      <p className="text-blue-200 text-sm mt-1">Controle de Lixamento e Pintura</p>
+    </div>
+  );
+
+  if(step===2&&foundData){
+    return(
+      <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          {headerCard}
+          <div className="p-6">
+            <div className="bg-blue-50 rounded-xl px-4 py-2 mb-4 text-center">
+              <p className="text-xs text-blue-500 font-medium">Obra encontrada</p>
+              <p className="font-bold text-blue-800 text-lg">{foundData.name}</p>
+            </div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">PIN de Acesso</label>
+            <input value={pin} onChange={e=>setPin(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&entrar('admin')}
+              type="password" placeholder="Digite o PIN"
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-blue-500"/>
+            {error&&<p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <button onClick={()=>entrar('admin')}
+                className="py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
+                ⚙️ Gestor
+              </button>
+              <button onClick={()=>entrar('apontador')}
+                className="py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600">
+                ✏️ Apontador
+              </button>
+            </div>
+            <button onClick={()=>{setStep(1);setPin('');setError('');}} className="w-full mt-3 text-sm text-gray-500 hover:underline">← Voltar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return(
     <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-8 text-center text-white relative">
-          <a href="https://eng-zabotti.github.io/comercialgerdaubelem/" target="_blank"
-            className="absolute top-3 left-3 flex items-center gap-1 text-blue-200 hover:text-white text-xs font-medium bg-blue-800/40 hover:bg-blue-800/70 px-2 py-1 rounded-lg transition-all">
-            ← Dashboard
-          </a>
-          <div className="text-5xl mb-2">🏗️</div>
-          <h1 className="text-2xl font-extrabold">GalpãoTrack</h1>
-          <p className="text-blue-200 text-sm mt-1">Controle de Lixamento e Pintura</p>
-        </div>
-
+        {headerCard}
         <div className="p-6">
           <label className="block text-sm font-bold text-gray-700 mb-2">Código da Obra</label>
           <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}
@@ -904,7 +960,7 @@ function LoginScreen({onLogin,onNew}){
           {error&&<p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
           <button onClick={buscar} disabled={loading}
             className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 disabled:opacity-60">
-            {loading?'Buscando...':'Acessar Obra →'}
+            {loading?'Buscando...':'Buscar Obra →'}
           </button>
           <div className="mt-4 text-center">
             <button onClick={onNew} className="text-sm text-blue-600 hover:underline font-medium">+ Criar nova obra</button>
@@ -947,7 +1003,7 @@ function App(){
   };
 
   const createProject=async(p)=>{
-    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt};
+    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt,pinAdmin:p.pinAdmin||'',pinApontador:p.pinApontador||''};
     if(db)await db.ref(`/obras/${p.code}`).set(obraObj);
     setShowNew(false);
     handleLogin(p.code,'admin',obraObj);

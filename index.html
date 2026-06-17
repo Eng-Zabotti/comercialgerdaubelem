@@ -132,9 +132,6 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
   <div class="hdr-right">
     <div class="live-badge"><span class="live-dot"></span>Monitoramento</div>
     <span class="upd-txt">Atualizado: <span id="last-upd">—</span></span>
-    <a href="./galpaotrack.html" target="_blank" class="btn-hdr" style="text-decoration:none;display:inline-flex;align-items:center;gap:6px">
-      🏭 GalpãoTrack
-    </a>
     <button class="btn-hdr" onclick="openEdit()">✏ Editar</button>
     <button class="btn-hdr sec" onclick="exportData()">⬇ Export</button>
     <button class="btn-hdr sec" onclick="document.getElementById('import-file').click()">⬆ Import</button>
@@ -150,6 +147,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
     <button class="tab-btn" onclick="showTab('cronograma')">Cronograma</button>
     <button class="tab-btn" onclick="showTab('tarefas')">Tarefas</button>
     <button class="tab-btn" onclick="showTab('curvas')">Curva S</button>
+    <a href="./galpaotrack.html" target="_blank" class="tab-btn" style="text-decoration:none;color:var(--amber);border-bottom-color:transparent" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--amber)'">🏭 GalpãoTrack ↗</a>
   </div>
 
   <div id="tab-dashboard" class="tab-content active">
