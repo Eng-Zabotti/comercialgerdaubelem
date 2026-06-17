@@ -827,73 +827,128 @@ function drawCurvaS(){
   const canvas=document.getElementById('cs-canvas');
   if(!canvas)return;
   const W=canvas.parentElement.clientWidth-32||800;
-  canvas.width=W;canvas.height=320;
+  canvas.width=W;canvas.height=340;
   const ctx=canvas.getContext('2d');
-  const ML=55,MR=20,MT=20,MB=45;
-  const cw=W-ML-MR, ch=320-MT-MB;
-  ctx.fillStyle='#0a1220';ctx.fillRect(0,0,W,320);
+  const ML=52,MR=16,MT=22,MB=48;
+  const cw=W-ML-MR, ch=340-MT-MB;
+  ctx.fillStyle='#0a1220';ctx.fillRect(0,0,W,340);
 
-  // Use data range (not project range) so the chart fits the actual curve
   const validDts=state.curvas.filter(r=>r.dt).map(r=>r.dt).sort();
   const pS=validDts.length?d(validDts[0]):d(PROJ_START);
   const pE=validDts.length?d(validDts[validDts.length-1]):d(PROJ_END);
   const totalMs=pE-pS||1;
   function cx(dt){return ML+(d(dt)-pS)/totalMs*cw;}
-  function cy(pct){return MT+ch-(pct/100)*ch;}
+  function cy(pct){return MT+ch-(Math.max(0,Math.min(100,pct))/100)*ch;}
 
-  // Grid
-  ctx.strokeStyle='rgba(255,255,255,0.05)';ctx.lineWidth=1;
+  // Grid horizontal
+  ctx.lineWidth=1;
   for(let p=0;p<=100;p+=20){
     const y=cy(p);
+    ctx.strokeStyle=p===0?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.05)';
     ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(ML+cw,y);ctx.stroke();
-    ctx.fillStyle='#4b5563';ctx.font='10px Barlow,sans-serif';
-    ctx.fillText(p+'%',ML-38,y+4);
+    ctx.fillStyle='#64748b';ctx.font='10px Barlow,sans-serif';ctx.textAlign='right';
+    ctx.fillText(p+'%',ML-6,y+4);
   }
-  // Month grid
+  // Grid vertical (meses)
   let mc=new Date(pS); mc.setDate(1);
   while(mc<=pE){
     const xx=cx(mc.toISOString().slice(0,10));
     ctx.strokeStyle='rgba(255,255,255,0.04)';
     ctx.beginPath();ctx.moveTo(xx,MT);ctx.lineTo(xx,MT+ch);ctx.stroke();
-    ctx.fillStyle='#4b5563';ctx.font='9px Barlow Condensed,sans-serif';
+    ctx.fillStyle='#64748b';ctx.font='9px Barlow Condensed,sans-serif';ctx.textAlign='left';
     const mn=mc.toLocaleDateString('pt-BR',{month:'short'}).replace('.','').toUpperCase();
-    ctx.fillText(mn+'/'+String(mc.getFullYear()).slice(2),xx+2,MT+ch+14);
+    ctx.fillText(mn+'/'+String(mc.getFullYear()).slice(2),xx+2,MT+ch+16);
     mc.setMonth(mc.getMonth()+1);
   }
-
-  // Axes
-  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;
+  // Eixos
+  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([]);
   ctx.beginPath();ctx.moveTo(ML,MT);ctx.lineTo(ML,MT+ch);ctx.lineTo(ML+cw,MT+ch);ctx.stroke();
 
-  // Planned line (blue)
-  const planPts=state.curvas.filter(r=>r.plan!=null&&r.dt).map(r=>({x:cx(r.dt),y:cy(r.plan)}));
+  // --- Dados ---
+  const planRows=state.curvas.filter(r=>r.plan!=null&&r.dt);
+  const realRows=state.curvas.filter(r=>r.real!=null&&r.dt);
+
+  // Último ponto real conhecido
+  const lastReal=realRows.length?realRows[realRows.length-1]:null;
+
+  // Área de desvio (preenchimento entre plan e real carry-forward)
+  if(planRows.length>1&&lastReal){
+    // Pega linha plan completa e linha real (carry-forward até fim)
+    const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.plan)}));
+    const lastRealY=cy(lastReal.real);
+    const lastRealX=cx(lastReal.dt);
+    // Polígono: linha plan do início ao fim, depois volta pelo real carry-forward
+    ctx.beginPath();
+    // Parte 1: plan desde início até o fim
+    ctx.moveTo(planPts[0].x,planPts[0].y);
+    planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
+    // Parte 2: voltar pelo real carry-forward (linha horizontal do fim até lastRealX)
+    ctx.lineTo(planPts[planPts.length-1].x,lastRealY);
+    ctx.lineTo(lastRealX,lastRealY);
+    // Parte 3: voltar pelo real real (do lastRealX até início)
+    const realPtsRev=realRows.map(r=>({x:cx(r.dt),y:cy(r.real)})).reverse();
+    realPtsRev.forEach(p=>ctx.lineTo(p.x,p.y));
+    ctx.closePath();
+    ctx.fillStyle='rgba(239,68,68,0.08)';
+    ctx.fill();
+  }
+
+  // Linha Planejado (azul)
+  const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.plan)}));
   if(planPts.length>1){
     ctx.beginPath();ctx.moveTo(planPts[0].x,planPts[0].y);
     planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;ctx.stroke();
-    planPts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);ctx.fillStyle='#3b82f6';ctx.fill();});
+    ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
   }
 
-  // Realizado line (green)
-  const realPts=state.curvas.filter(r=>r.real!=null&&r.dt).map(r=>({x:cx(r.dt),y:cy(r.real)}));
+  // Linha Realizado - parte sólida (dados reais)
+  const realPts=realRows.map(r=>({x:cx(r.dt),y:cy(r.real)}));
   if(realPts.length>1){
     ctx.beginPath();ctx.moveTo(realPts[0].x,realPts[0].y);
     realPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle='#22c55e';ctx.lineWidth=2.5;ctx.stroke();
-    realPts.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,4,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();});
-  } else if(realPts.length===1){
-    ctx.beginPath();ctx.arc(realPts[0].x,realPts[0].y,4,0,Math.PI*2);ctx.fillStyle='#22c55e';ctx.fill();
+    ctx.strokeStyle='#22c55e';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
   }
 
-  // Today line
+  // Linha Realizado - carry-forward (tracejada, continua até o fim)
+  if(lastReal&&planPts.length){
+    const lastX=cx(lastReal.dt);
+    const lastY=cy(lastReal.real);
+    const endX=planPts[planPts.length-1].x;
+    ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(endX,lastY);
+    ctx.strokeStyle='#22c55e';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.stroke();
+    ctx.setLineDash([]);
+    // Rótulo desvio atual
+    const todayX=cx(TODAY);
+    const todayPlanPt=planRows.find(r=>r.dt>=TODAY);
+    if(todayPlanPt){
+      const dev=Math.round((lastReal.real-todayPlanPt.plan)*10)/10;
+      const devStr=(dev>=0?'+':'')+dev+'%';
+      const devColor=dev>=0?'#22c55e':'#ef4444';
+      ctx.fillStyle=devColor;ctx.font='bold 10px Barlow Condensed,sans-serif';ctx.textAlign='left';
+      ctx.fillText('Desvio: '+devStr,todayX+6,cy((lastReal.real+todayPlanPt.plan)/2));
+    }
+  }
+
+  // Pontos Realizado
+  if(realPts.length>0){
+    realPts.forEach((p,i)=>{
+      if(i%7===0||i===realPts.length-1){
+        ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
+        ctx.fillStyle='#22c55e';ctx.fill();
+      }
+    });
+  }
+
+  // Linha HOJE
   try{
     const tx=cx(TODAY);
     ctx.setLineDash([4,3]);ctx.strokeStyle='#f5b800';ctx.lineWidth=1.5;
     ctx.beginPath();ctx.moveTo(tx,MT);ctx.lineTo(tx,MT+ch);ctx.stroke();
     ctx.setLineDash([]);
-    ctx.fillStyle='#f5b800';ctx.font='bold 9px Barlow Condensed,sans-serif';
-    ctx.fillText('HOJE',tx+3,MT+12);
+    ctx.fillStyle='#f5b800';ctx.font='bold 9px Barlow Condensed,sans-serif';ctx.textAlign='left';
+    ctx.fillText('HOJE',tx+3,MT+11);
   }catch(e){}
+  ctx.textAlign='left';
 }
 
 function updateCurva(i,field,val){
