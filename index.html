@@ -114,7 +114,8 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .cs-tbl tr:hover td{background:rgba(255,255,255,.02)}
 .cs-inp{background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 8px;color:var(--text);font-size:.82rem;text-align:center;font-family:'Barlow',sans-serif;transition:border-color .2s;width:100px}
 .cs-inp:focus{outline:none;border-color:rgba(245,184,0,.4);background:rgba(0,0,0,.25)}
-.cs-inp-d{width:130px}
+.cs-inp-d{width:118px}
+.cs-inp-sm{width:70px}
 .btn-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:.95rem;padding:2px 6px;border-radius:3px;transition:color .2s;line-height:1}
 .btn-del:hover{color:var(--red)}
 .today-tag{font-size:.64rem;background:rgba(245,184,0,.15);color:var(--yellow);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
@@ -203,7 +204,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
       <button class="btn-cs" onclick="exportCurvaCSV()">⬇ Export CSV</button>
       <button class="btn-cs" onclick="document.getElementById('curva-import').click()">⬆ Import CSV</button>
       <button class="btn-cs danger" onclick="resetCurva()">↺ Resetar Padrão</button>
-      <span style="font-size:.75rem;color:var(--dim);margin-left:auto">Clique em qualquer célula para editar</span>
+      <span style="font-size:.75rem;color:var(--dim);margin-left:auto">Preencha <b style="color:#22c55e">Real. Dia</b> — Acumulado e Desvios calculados automaticamente</span>
     </div>
     <input type="file" id="curva-import" accept=".csv" style="display:none" onchange="importCurvaCSV(event)">
     <div class="cs-canvas-wrap">
@@ -220,10 +221,13 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
           <tr>
             <th style="width:40px">#</th>
             <th>Data</th>
-            <th>Planejado (%)</th>
-            <th>Realizado (%)</th>
-            <th>Desvio</th>
-            <th style="width:40px"></th>
+            <th style="color:#3b82f6">Plan. Dia</th>
+            <th style="color:#3b82f6">Acum. Plan</th>
+            <th style="color:#22c55e">Real. Dia</th>
+            <th style="color:#22c55e">Acum. Real</th>
+            <th>Desv. Dia</th>
+            <th>Desv. Acum</th>
+            <th style="width:32px"></th>
           </tr>
         </thead>
         <tbody id="curva-tbody"></tbody>
@@ -317,125 +321,125 @@ const PHASES = [
 
 const PROJ_START = '2026-03-25';
 const PROJ_END   = '2026-08-31';
-const TODAY      = '2026-06-17';
+const TODAY      = new Date().toISOString().slice(0,10);
 
 const DEFAULT_CURVAS = [
-  {dt:'2026-05-11',plan:1,real:1},
-  {dt:'2026-05-12',plan:1,real:1},
-  {dt:'2026-05-13',plan:1,real:1},
-  {dt:'2026-05-14',plan:1,real:1},
-  {dt:'2026-05-15',plan:3,real:3},
-  {dt:'2026-05-16',plan:3,real:3},
-  {dt:'2026-05-17',plan:3,real:3},
-  {dt:'2026-05-18',plan:5,real:5},
-  {dt:'2026-05-19',plan:9,real:9},
-  {dt:'2026-05-20',plan:13,real:13},
-  {dt:'2026-05-21',plan:13,real:13},
-  {dt:'2026-05-22',plan:13,real:13},
-  {dt:'2026-05-23',plan:13,real:13},
-  {dt:'2026-05-24',plan:13,real:13},
-  {dt:'2026-05-25',plan:13,real:13},
-  {dt:'2026-05-26',plan:14,real:14},
-  {dt:'2026-05-27',plan:15,real:15},
-  {dt:'2026-05-28',plan:15,real:15},
-  {dt:'2026-05-29',plan:15,real:15.5},
-  {dt:'2026-05-30',plan:15,real:15.5},
-  {dt:'2026-05-31',plan:15,real:15.5},
-  {dt:'2026-06-01',plan:15,real:16},
-  {dt:'2026-06-02',plan:16,real:17},
-  {dt:'2026-06-03',plan:17,real:18},
-  {dt:'2026-06-04',plan:18,real:19},
-  {dt:'2026-06-05',plan:19,real:20},
-  {dt:'2026-06-06',plan:19,real:20},
-  {dt:'2026-06-07',plan:19,real:20},
-  {dt:'2026-06-08',plan:20,real:20},
-  {dt:'2026-06-09',plan:20,real:21},
-  {dt:'2026-06-10',plan:20,real:21},
-  {dt:'2026-06-11',plan:21,real:22},
-  {dt:'2026-06-12',plan:21,real:22},
-  {dt:'2026-06-13',plan:21,real:22},
-  {dt:'2026-06-14',plan:21,real:22},
-  {dt:'2026-06-15',plan:23,real:24},
-  {dt:'2026-06-16',plan:25,real:26},
-  {dt:'2026-06-17',plan:28,real:26},
-  {dt:'2026-06-18',plan:32,real:null},
-  {dt:'2026-06-19',plan:35,real:null},
-  {dt:'2026-06-20',plan:35,real:null},
-  {dt:'2026-06-21',plan:35,real:null},
-  {dt:'2026-06-22',plan:38,real:null},
-  {dt:'2026-06-23',plan:41,real:null},
-  {dt:'2026-06-24',plan:43,real:null},
-  {dt:'2026-06-25',plan:44,real:null},
-  {dt:'2026-06-26',plan:45,real:null},
-  {dt:'2026-06-27',plan:45,real:null},
-  {dt:'2026-06-28',plan:45,real:null},
-  {dt:'2026-06-29',plan:46,real:null},
-  {dt:'2026-06-30',plan:47,real:null},
-  {dt:'2026-07-01',plan:49,real:null},
-  {dt:'2026-07-02',plan:51,real:null},
-  {dt:'2026-07-03',plan:53,real:null},
-  {dt:'2026-07-04',plan:53,real:null},
-  {dt:'2026-07-05',plan:53,real:null},
-  {dt:'2026-07-06',plan:55,real:null},
-  {dt:'2026-07-07',plan:57,real:null},
-  {dt:'2026-07-08',plan:59,real:null},
-  {dt:'2026-07-09',plan:61,real:null},
-  {dt:'2026-07-10',plan:63,real:null},
-  {dt:'2026-07-11',plan:63,real:null},
-  {dt:'2026-07-12',plan:63,real:null},
-  {dt:'2026-07-13',plan:65,real:null},
-  {dt:'2026-07-14',plan:67,real:null},
-  {dt:'2026-07-15',plan:68,real:null},
-  {dt:'2026-07-16',plan:69,real:null},
-  {dt:'2026-07-17',plan:70,real:null},
-  {dt:'2026-07-18',plan:70,real:null},
-  {dt:'2026-07-19',plan:70,real:null},
-  {dt:'2026-07-20',plan:71,real:null},
-  {dt:'2026-07-21',plan:72,real:null},
-  {dt:'2026-07-22',plan:73,real:null},
-  {dt:'2026-07-23',plan:74,real:null},
-  {dt:'2026-07-24',plan:75,real:null},
-  {dt:'2026-07-25',plan:75,real:null},
-  {dt:'2026-07-26',plan:75,real:null},
-  {dt:'2026-07-27',plan:76,real:null},
-  {dt:'2026-07-28',plan:77,real:null},
-  {dt:'2026-07-29',plan:78,real:null},
-  {dt:'2026-07-30',plan:79,real:null},
-  {dt:'2026-07-31',plan:80,real:null},
-  {dt:'2026-08-01',plan:80,real:null},
-  {dt:'2026-08-02',plan:80,real:null},
-  {dt:'2026-08-03',plan:81,real:null},
-  {dt:'2026-08-04',plan:82,real:null},
-  {dt:'2026-08-05',plan:82,real:null},
-  {dt:'2026-08-06',plan:83,real:null},
-  {dt:'2026-08-07',plan:83,real:null},
-  {dt:'2026-08-08',plan:83,real:null},
-  {dt:'2026-08-09',plan:83,real:null},
-  {dt:'2026-08-10',plan:84,real:null},
-  {dt:'2026-08-11',plan:84,real:null},
-  {dt:'2026-08-12',plan:85,real:null},
-  {dt:'2026-08-13',plan:85,real:null},
-  {dt:'2026-08-14',plan:86,real:null},
-  {dt:'2026-08-15',plan:86,real:null},
-  {dt:'2026-08-16',plan:86,real:null},
-  {dt:'2026-08-17',plan:87,real:null},
-  {dt:'2026-08-18',plan:88,real:null},
-  {dt:'2026-08-19',plan:89,real:null},
-  {dt:'2026-08-20',plan:90,real:null},
-  {dt:'2026-08-21',plan:91,real:null},
-  {dt:'2026-08-22',plan:91,real:null},
-  {dt:'2026-08-23',plan:91,real:null},
-  {dt:'2026-08-24',plan:92,real:null},
-  {dt:'2026-08-25',plan:93,real:null},
-  {dt:'2026-08-26',plan:94,real:null},
-  {dt:'2026-08-27',plan:95,real:null},
-  {dt:'2026-08-28',plan:96,real:null},
-  {dt:'2026-08-29',plan:96,real:null},
-  {dt:'2026-08-30',plan:96,real:null},
-  {dt:'2026-08-31',plan:97,real:null},
-  {dt:'2026-09-01',plan:98,real:null},
-  {dt:'2026-09-02',plan:99,real:null},
-  {dt:'2026-09-03',plan:100,real:null},
+  {dt:'2026-05-11',planDia:1,  realDia:1},
+  {dt:'2026-05-12',planDia:0,  realDia:0},
+  {dt:'2026-05-13',planDia:0,  realDia:0},
+  {dt:'2026-05-14',planDia:0,  realDia:0},
+  {dt:'2026-05-15',planDia:2,  realDia:2},
+  {dt:'2026-05-16',planDia:0,  realDia:0},
+  {dt:'2026-05-17',planDia:0,  realDia:0},
+  {dt:'2026-05-18',planDia:2,  realDia:2},
+  {dt:'2026-05-19',planDia:4,  realDia:4},
+  {dt:'2026-05-20',planDia:4,  realDia:4},
+  {dt:'2026-05-21',planDia:0,  realDia:0},
+  {dt:'2026-05-22',planDia:0,  realDia:0},
+  {dt:'2026-05-23',planDia:0,  realDia:0},
+  {dt:'2026-05-24',planDia:0,  realDia:0},
+  {dt:'2026-05-25',planDia:0,  realDia:0},
+  {dt:'2026-05-26',planDia:1,  realDia:1},
+  {dt:'2026-05-27',planDia:1,  realDia:1},
+  {dt:'2026-05-28',planDia:0,  realDia:0},
+  {dt:'2026-05-29',planDia:0,  realDia:0.5},
+  {dt:'2026-05-30',planDia:0,  realDia:0},
+  {dt:'2026-05-31',planDia:0,  realDia:0},
+  {dt:'2026-06-01',planDia:0,  realDia:0.5},
+  {dt:'2026-06-02',planDia:1,  realDia:1},
+  {dt:'2026-06-03',planDia:1,  realDia:1},
+  {dt:'2026-06-04',planDia:1,  realDia:1},
+  {dt:'2026-06-05',planDia:1,  realDia:1},
+  {dt:'2026-06-06',planDia:0,  realDia:0},
+  {dt:'2026-06-07',planDia:0,  realDia:0},
+  {dt:'2026-06-08',planDia:1,  realDia:0},
+  {dt:'2026-06-09',planDia:0,  realDia:1},
+  {dt:'2026-06-10',planDia:0,  realDia:0},
+  {dt:'2026-06-11',planDia:1,  realDia:1},
+  {dt:'2026-06-12',planDia:0,  realDia:0},
+  {dt:'2026-06-13',planDia:0,  realDia:0},
+  {dt:'2026-06-14',planDia:0,  realDia:0},
+  {dt:'2026-06-15',planDia:2,  realDia:2},
+  {dt:'2026-06-16',planDia:2,  realDia:2},
+  {dt:'2026-06-17',planDia:3,  realDia:null},
+  {dt:'2026-06-18',planDia:4,  realDia:null},
+  {dt:'2026-06-19',planDia:3,  realDia:null},
+  {dt:'2026-06-20',planDia:0,  realDia:null},
+  {dt:'2026-06-21',planDia:0,  realDia:null},
+  {dt:'2026-06-22',planDia:3,  realDia:null},
+  {dt:'2026-06-23',planDia:3,  realDia:null},
+  {dt:'2026-06-24',planDia:2,  realDia:null},
+  {dt:'2026-06-25',planDia:1,  realDia:null},
+  {dt:'2026-06-26',planDia:1,  realDia:null},
+  {dt:'2026-06-27',planDia:0,  realDia:null},
+  {dt:'2026-06-28',planDia:0,  realDia:null},
+  {dt:'2026-06-29',planDia:1,  realDia:null},
+  {dt:'2026-06-30',planDia:1,  realDia:null},
+  {dt:'2026-07-01',planDia:2,  realDia:null},
+  {dt:'2026-07-02',planDia:2,  realDia:null},
+  {dt:'2026-07-03',planDia:2,  realDia:null},
+  {dt:'2026-07-04',planDia:0,  realDia:null},
+  {dt:'2026-07-05',planDia:0,  realDia:null},
+  {dt:'2026-07-06',planDia:2,  realDia:null},
+  {dt:'2026-07-07',planDia:2,  realDia:null},
+  {dt:'2026-07-08',planDia:2,  realDia:null},
+  {dt:'2026-07-09',planDia:2,  realDia:null},
+  {dt:'2026-07-10',planDia:2,  realDia:null},
+  {dt:'2026-07-11',planDia:0,  realDia:null},
+  {dt:'2026-07-12',planDia:0,  realDia:null},
+  {dt:'2026-07-13',planDia:2,  realDia:null},
+  {dt:'2026-07-14',planDia:2,  realDia:null},
+  {dt:'2026-07-15',planDia:1,  realDia:null},
+  {dt:'2026-07-16',planDia:1,  realDia:null},
+  {dt:'2026-07-17',planDia:1,  realDia:null},
+  {dt:'2026-07-18',planDia:0,  realDia:null},
+  {dt:'2026-07-19',planDia:0,  realDia:null},
+  {dt:'2026-07-20',planDia:1,  realDia:null},
+  {dt:'2026-07-21',planDia:1,  realDia:null},
+  {dt:'2026-07-22',planDia:1,  realDia:null},
+  {dt:'2026-07-23',planDia:1,  realDia:null},
+  {dt:'2026-07-24',planDia:1,  realDia:null},
+  {dt:'2026-07-25',planDia:0,  realDia:null},
+  {dt:'2026-07-26',planDia:0,  realDia:null},
+  {dt:'2026-07-27',planDia:1,  realDia:null},
+  {dt:'2026-07-28',planDia:1,  realDia:null},
+  {dt:'2026-07-29',planDia:1,  realDia:null},
+  {dt:'2026-07-30',planDia:1,  realDia:null},
+  {dt:'2026-07-31',planDia:1,  realDia:null},
+  {dt:'2026-08-01',planDia:0,  realDia:null},
+  {dt:'2026-08-02',planDia:0,  realDia:null},
+  {dt:'2026-08-03',planDia:1,  realDia:null},
+  {dt:'2026-08-04',planDia:1,  realDia:null},
+  {dt:'2026-08-05',planDia:0,  realDia:null},
+  {dt:'2026-08-06',planDia:1,  realDia:null},
+  {dt:'2026-08-07',planDia:0,  realDia:null},
+  {dt:'2026-08-08',planDia:0,  realDia:null},
+  {dt:'2026-08-09',planDia:0,  realDia:null},
+  {dt:'2026-08-10',planDia:1,  realDia:null},
+  {dt:'2026-08-11',planDia:0,  realDia:null},
+  {dt:'2026-08-12',planDia:1,  realDia:null},
+  {dt:'2026-08-13',planDia:0,  realDia:null},
+  {dt:'2026-08-14',planDia:1,  realDia:null},
+  {dt:'2026-08-15',planDia:0,  realDia:null},
+  {dt:'2026-08-16',planDia:0,  realDia:null},
+  {dt:'2026-08-17',planDia:1,  realDia:null},
+  {dt:'2026-08-18',planDia:1,  realDia:null},
+  {dt:'2026-08-19',planDia:1,  realDia:null},
+  {dt:'2026-08-20',planDia:1,  realDia:null},
+  {dt:'2026-08-21',planDia:1,  realDia:null},
+  {dt:'2026-08-22',planDia:0,  realDia:null},
+  {dt:'2026-08-23',planDia:0,  realDia:null},
+  {dt:'2026-08-24',planDia:1,  realDia:null},
+  {dt:'2026-08-25',planDia:1,  realDia:null},
+  {dt:'2026-08-26',planDia:1,  realDia:null},
+  {dt:'2026-08-27',planDia:1,  realDia:null},
+  {dt:'2026-08-28',planDia:1,  realDia:null},
+  {dt:'2026-08-29',planDia:0,  realDia:null},
+  {dt:'2026-08-30',planDia:0,  realDia:null},
+  {dt:'2026-08-31',planDia:1,  realDia:null},
+  {dt:'2026-09-01',planDia:1,  realDia:null},
+  {dt:'2026-09-02',planDia:1,  realDia:null},
+  {dt:'2026-09-03',planDia:1,  realDia:null},
 ];
 
 function DEFAULT_STATE(){
@@ -801,26 +805,51 @@ function saveIndicadores(){
 // ============================
 // CURVA S
 // ============================
+
+// Calcula planAcum, realAcum, desvioDia e desvioAcum a partir dos valores diários
+function computeCurvas(curvas){
+  let planAcum=0, realAcum=0;
+  return curvas.map(r=>{
+    planAcum=Math.round((planAcum+(r.planDia||0))*10)/10;
+    let rowRealAcum=null;
+    if(r.realDia!=null){
+      realAcum=Math.round((realAcum+r.realDia)*10)/10;
+      rowRealAcum=realAcum;
+    }
+    const desvioD=r.realDia!=null?Math.round((r.realDia-(r.planDia||0))*10)/10:null;
+    const desvioA=rowRealAcum!=null?Math.round((rowRealAcum-planAcum)*10)/10:null;
+    return {...r,planAcum,realAcum:rowRealAcum,desvioD,desvioA};
+  });
+}
+
 function renderCurvaS(){
   drawCurvaS();
   buildCurvaTable();
 }
 
 function buildCurvaTable(){
-  const rows=state.curvas.map((row,i)=>{
-    const desvio=(row.real!=null&&row.plan!=null)?row.real-row.plan:null;
-    const dc=desvio===null?'var(--dim)':desvio>=0?'#22c55e':'#ef4444';
+  const comp=computeCurvas(state.curvas);
+  const rows=comp.map((row,i)=>{
     const isToday=row.dt===TODAY;
-    return `<tr id="crow-${i}">
-      <td style="color:var(--dim)">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
+    const dc=row.desvioA===null?'var(--dim)':row.desvioA>=0?'#22c55e':'#ef4444';
+    const dd=row.desvioD===null?'var(--dim)':row.desvioD>=0?'#22c55e':'#ef4444';
+    const trStyle=isToday?'style="background:rgba(245,184,0,0.07)"':'';
+    return `<tr id="crow-${i}" ${trStyle}>
+      <td style="color:var(--dim);white-space:nowrap">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
       <td><input class="cs-inp cs-inp-d" value="${row.dt}" onchange="updateCurva(${i},'dt',this.value)"></td>
-      <td><input class="cs-inp" type="number" min="0" max="100" step="0.1" value="${row.plan??''}" placeholder="—" onchange="updateCurva(${i},'plan',this.value)"></td>
-      <td><input class="cs-inp" type="number" min="0" max="100" step="0.1" value="${row.real??''}" placeholder="—" onchange="updateCurva(${i},'real',this.value)" style="border-color:rgba(34,197,94,.2)"></td>
-      <td style="color:${dc};font-weight:700">${desvio===null?'—':(desvio>=0?'+':'')+desvio.toFixed(1)+'%'}</td>
+      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.planDia??''}" placeholder="—" oninput="updateCurva(${i},'planDia',this.value)" style="border-color:rgba(59,130,246,.25)"></td>
+      <td style="color:#3b82f6;font-weight:600">${row.planAcum!=null?row.planAcum.toFixed(1)+'%':'—'}</td>
+      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.realDia??''}" placeholder="—" oninput="updateCurva(${i},'realDia',this.value)" style="border-color:rgba(34,197,94,.25)"></td>
+      <td style="color:#22c55e;font-weight:600">${row.realAcum!=null?row.realAcum.toFixed(1)+'%':'—'}</td>
+      <td style="color:${dd};font-weight:700">${row.desvioD===null?'—':(row.desvioD>=0?'+':'')+row.desvioD.toFixed(1)+'%'}</td>
+      <td style="color:${dc};font-weight:700">${row.desvioA===null?'—':(row.desvioA>=0?'+':'')+row.desvioA.toFixed(1)+'%'}</td>
       <td><button class="btn-del" onclick="deleteRow(${i})" title="Remover linha">✕</button></td>
     </tr>`;
   }).join('');
   document.getElementById('curva-tbody').innerHTML=rows;
+  // Rolar até hoje
+  const todayRow=document.getElementById('curva-tbody').querySelector('tr[style]');
+  if(todayRow)setTimeout(()=>todayRow.scrollIntoView({block:'center',behavior:'smooth'}),100);
 }
 
 function drawCurvaS(){
@@ -830,10 +859,11 @@ function drawCurvaS(){
   canvas.width=W;canvas.height=340;
   const ctx=canvas.getContext('2d');
   const ML=52,MR=16,MT=22,MB=48;
-  const cw=W-ML-MR, ch=340-MT-MB;
+  const cw=W-ML-MR,ch=340-MT-MB;
   ctx.fillStyle='#0a1220';ctx.fillRect(0,0,W,340);
 
-  const validDts=state.curvas.filter(r=>r.dt).map(r=>r.dt).sort();
+  const comp=computeCurvas(state.curvas);
+  const validDts=comp.filter(r=>r.dt).map(r=>r.dt).sort();
   const pS=validDts.length?d(validDts[0]):d(PROJ_START);
   const pE=validDts.length?d(validDts[validDts.length-1]):d(PROJ_END);
   const totalMs=pE-pS||1;
@@ -850,7 +880,7 @@ function drawCurvaS(){
     ctx.fillText(p+'%',ML-6,y+4);
   }
   // Grid vertical (meses)
-  let mc=new Date(pS); mc.setDate(1);
+  let mc=new Date(pS);mc.setDate(1);
   while(mc<=pE){
     const xx=cx(mc.toISOString().slice(0,10));
     ctx.strokeStyle='rgba(255,255,255,0.04)';
@@ -864,80 +894,65 @@ function drawCurvaS(){
   ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([]);
   ctx.beginPath();ctx.moveTo(ML,MT);ctx.lineTo(ML,MT+ch);ctx.lineTo(ML+cw,MT+ch);ctx.stroke();
 
-  // --- Dados ---
-  const planRows=state.curvas.filter(r=>r.plan!=null&&r.dt);
-  const realRows=state.curvas.filter(r=>r.real!=null&&r.dt);
-
-  // Último ponto real conhecido
+  const planRows=comp.filter(r=>r.dt);
+  const realRows=comp.filter(r=>r.realAcum!=null&&r.dt);
   const lastReal=realRows.length?realRows[realRows.length-1]:null;
 
-  // Área de desvio (preenchimento entre plan e real carry-forward)
+  // Área de desvio
   if(planRows.length>1&&lastReal){
-    // Pega linha plan completa e linha real (carry-forward até fim)
-    const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.plan)}));
-    const lastRealY=cy(lastReal.real);
+    const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.planAcum)}));
+    const lastRealY=cy(lastReal.realAcum);
     const lastRealX=cx(lastReal.dt);
-    // Polígono: linha plan do início ao fim, depois volta pelo real carry-forward
     ctx.beginPath();
-    // Parte 1: plan desde início até o fim
     ctx.moveTo(planPts[0].x,planPts[0].y);
     planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    // Parte 2: voltar pelo real carry-forward (linha horizontal do fim até lastRealX)
     ctx.lineTo(planPts[planPts.length-1].x,lastRealY);
     ctx.lineTo(lastRealX,lastRealY);
-    // Parte 3: voltar pelo real real (do lastRealX até início)
-    const realPtsRev=realRows.map(r=>({x:cx(r.dt),y:cy(r.real)})).reverse();
-    realPtsRev.forEach(p=>ctx.lineTo(p.x,p.y));
+    realRows.map(r=>({x:cx(r.dt),y:cy(r.realAcum)})).reverse().forEach(p=>ctx.lineTo(p.x,p.y));
     ctx.closePath();
-    ctx.fillStyle='rgba(239,68,68,0.08)';
-    ctx.fill();
+    ctx.fillStyle='rgba(239,68,68,0.08)';ctx.fill();
   }
 
   // Linha Planejado (azul)
-  const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.plan)}));
+  const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.planAcum)}));
   if(planPts.length>1){
     ctx.beginPath();ctx.moveTo(planPts[0].x,planPts[0].y);
     planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
     ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
   }
 
-  // Linha Realizado - parte sólida (dados reais)
-  const realPts=realRows.map(r=>({x:cx(r.dt),y:cy(r.real)}));
+  // Linha Realizado — sólida
+  const realPts=realRows.map(r=>({x:cx(r.dt),y:cy(r.realAcum)}));
   if(realPts.length>1){
     ctx.beginPath();ctx.moveTo(realPts[0].x,realPts[0].y);
     realPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
     ctx.strokeStyle='#22c55e';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
   }
 
-  // Linha Realizado - carry-forward (tracejada, continua até o fim)
+  // Linha Realizado — carry-forward tracejada
   if(lastReal&&planPts.length){
-    const lastX=cx(lastReal.dt);
-    const lastY=cy(lastReal.real);
+    const lastX=cx(lastReal.dt),lastY=cy(lastReal.realAcum);
     const endX=planPts[planPts.length-1].x;
     ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(endX,lastY);
     ctx.strokeStyle='#22c55e';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.stroke();
     ctx.setLineDash([]);
-    // Rótulo desvio atual
-    const todayX=cx(TODAY);
-    const todayPlanPt=planRows.find(r=>r.dt>=TODAY);
-    if(todayPlanPt){
-      const dev=Math.round((lastReal.real-todayPlanPt.plan)*10)/10;
+    const todayPlanRow=planRows.find(r=>r.dt>=TODAY);
+    if(todayPlanRow){
+      const dev=Math.round((lastReal.realAcum-todayPlanRow.planAcum)*10)/10;
       const devStr=(dev>=0?'+':'')+dev+'%';
-      const devColor=dev>=0?'#22c55e':'#ef4444';
-      ctx.fillStyle=devColor;ctx.font='bold 10px Barlow Condensed,sans-serif';ctx.textAlign='left';
-      ctx.fillText('Desvio: '+devStr,todayX+6,cy((lastReal.real+todayPlanPt.plan)/2));
+      ctx.fillStyle=dev>=0?'#22c55e':'#ef4444';
+      ctx.font='bold 10px Barlow Condensed,sans-serif';ctx.textAlign='left';
+      ctx.fillText('Desvio: '+devStr,cx(TODAY)+6,cy((lastReal.realAcum+todayPlanRow.planAcum)/2));
     }
   }
 
-  // Pontos Realizado
-  if(realPts.length>0){
-    realPts.forEach((p,i)=>{
-      if(i%7===0||i===realPts.length-1){
-        ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
-        ctx.fillStyle='#22c55e';ctx.fill();
-      }
-    });
-  }
+  // Pontos Realizado (a cada 7 dias + último)
+  realPts.forEach((p,i)=>{
+    if(i%7===0||i===realPts.length-1){
+      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
+      ctx.fillStyle='#22c55e';ctx.fill();
+    }
+  });
 
   // Linha HOJE
   try{
@@ -952,12 +967,13 @@ function drawCurvaS(){
 }
 
 function updateCurva(i,field,val){
-  if(field==='plan'||field==='real'){
+  if(field==='planDia'||field==='realDia'){
     state.curvas[i][field]=val===''?null:parseFloat(val);
   } else {
     state.curvas[i][field]=val;
   }
   save();
+  buildCurvaTable();
   drawCurvaS();
 }
 
@@ -965,43 +981,37 @@ function addCurvaRow(){
   const last=state.curvas[state.curvas.length-1];
   let nextDt=TODAY;
   if(last&&last.dt){
-    const nd=d(last.dt);
-    nd.setDate(nd.getDate()+7);
+    const nd=d(last.dt);nd.setDate(nd.getDate()+1);
     nextDt=nd.toISOString().slice(0,10);
   }
-  state.curvas.push({dt:nextDt,plan:null,real:null});
-  save();
-  buildCurvaTable();
-  drawCurvaS();
+  state.curvas.push({dt:nextDt,planDia:null,realDia:null});
+  save();buildCurvaTable();drawCurvaS();
 }
 
 function deleteRow(i){
   if(state.curvas.length<=2){alert('Mínimo 2 linhas na curva.');return;}
   state.curvas.splice(i,1);
-  save();
-  buildCurvaTable();
-  drawCurvaS();
+  save();buildCurvaTable();drawCurvaS();
 }
 
 function clearRealizado(){
   if(!confirm('Limpar todos os valores de Realizado?'))return;
-  state.curvas.forEach(r=>r.real=null);
-  save();
-  buildCurvaTable();
-  drawCurvaS();
+  state.curvas.forEach(r=>r.realDia=null);
+  save();buildCurvaTable();drawCurvaS();
 }
 
 function resetCurva(){
   if(!confirm('Resetar Curva S para valores padrão do cronograma?'))return;
   state.curvas=JSON.parse(JSON.stringify(DEFAULT_CURVAS));
-  save();
-  buildCurvaTable();
-  drawCurvaS();
+  save();buildCurvaTable();drawCurvaS();
 }
 
 function exportCurvaCSV(){
-  let csv='Data,Planejado (%),Realizado (%)\n';
-  state.curvas.forEach(r=>{ csv+=`${r.dt},${r.plan??''},${r.real??''}\n`; });
+  const comp=computeCurvas(state.curvas);
+  let csv='Data,Plan. Dia (%),Acum. Plan (%),Real. Dia (%),Acum. Real (%),Desv. Dia,Desv. Acum\n';
+  comp.forEach(r=>{
+    csv+=`${r.dt},${r.planDia??''},${r.planAcum??''},${r.realDia??''},${r.realAcum??''},${r.desvioD??''},${r.desvioA??''}\n`;
+  });
   const a=document.createElement('a');
   a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
   a.download='curva_s_gerdau_belem.csv';a.click();
@@ -1013,8 +1023,11 @@ function importCurvaCSV(e){
   reader.onload=ev=>{
     const lines=ev.target.result.split('\n').filter(l=>l.trim()&&!l.startsWith('Data'));
     const rows=lines.map(l=>{
-      const [dt,plan,real]=l.split(',');
-      return {dt:dt.trim(),plan:plan.trim()===''?null:parseFloat(plan),real:real?.trim()===''||!real?null:parseFloat(real)};
+      const p=l.split(',');
+      const dt=p[0]?.trim();
+      const planDia=p[1]?.trim();
+      const realDia=p[3]?.trim();
+      return {dt,planDia:planDia===''||!planDia?null:parseFloat(planDia),realDia:realDia===''||!realDia?null:parseFloat(realDia)};
     }).filter(r=>r.dt);
     if(rows.length>0){state.curvas=rows;save();buildCurvaTable();drawCurvaS();}
     e.target.value='';
@@ -1092,7 +1105,7 @@ function load(){
       // ensure all vaos exist
       VAOS.forEach(v=>{if(!state.vaos[v.id])state.vaos[v.id]={tesoura:v.tesoura.pct,pilar:v.pilar.pct};});
       PHASES.forEach(p=>{if(state.phases[p.id]==null)state.phases[p.id]=p.pct;});
-      if(!state.curvas||!state.curvas.length)state.curvas=JSON.parse(JSON.stringify(DEFAULT_CURVAS));
+      if(!state.curvas||!state.curvas.length||'plan' in (state.curvas[0]||{}))state.curvas=JSON.parse(JSON.stringify(DEFAULT_CURVAS));
     } else {
       state=DEFAULT_STATE();
     }
