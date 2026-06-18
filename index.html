@@ -503,14 +503,27 @@ function showTab(id){
 // DASHBOARD
 // ============================
 function renderDashboard(){
-  const geral=overallGeral();
+  // Valores da Curva S
+  const comp=computeCurvas(state.curvas);
+  const todayPlanRow=[...comp].filter(r=>r.dt&&r.dt<=TODAY).sort((a,b)=>b.dt.localeCompare(a.dt))[0];
+  const planAcum=todayPlanRow?todayPlanRow.planAcum:null;
+  const realRows=comp.filter(r=>r.realAcum!=null&&r.dt);
+  const lastRealRow=realRows.length?realRows[realRows.length-1]:null;
+  const realAcum=lastRealRow?lastRealRow.realAcum:null;
+  const desvio=(realAcum!=null&&planAcum!=null)?Math.round((realAcum-planAcum)*10)/10:null;
+  const desvioKC=desvio==null?'var(--dim)':desvio>=0?'#22c55e':'#ef4444';
+  const desvioStr=desvio==null?'—':(desvio>=0?'+':'')+desvio.toFixed(1)+'%';
+  const desvioSub=desvio==null?'Sem dados':desvio>0?'Adiantado':desvio===0?'No prazo':'Atrasado';
+
   const elapsed=daysBetween(PROJ_START,TODAY);
   const total=daysBetween(PROJ_START,PROJ_END);
   const remaining=daysBetween(TODAY,PROJ_END);
   const done=VAOS.filter(v=>vaoOverall(v.id)===100).length;
   const tercas=state.phases.tercas;
   document.getElementById('kpi-strip').innerHTML=`
-    <div class="kpi" style="--kc:#f5b800"><div class="kpi-lbl">Avanço Geral</div><div class="kpi-val">${geral}%</div><div class="kpi-sub">Obra Belém</div></div>
+    <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Avanço Planejado</div><div class="kpi-val" style="color:#3b82f6">${planAcum!=null?planAcum.toFixed(1)+'%':'—'}</div><div class="kpi-sub">Acumulado hoje</div></div>
+    <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Avanço Real</div><div class="kpi-val" style="color:#22c55e">${realAcum!=null?realAcum.toFixed(1)+'%':'—'}</div><div class="kpi-sub">${lastRealRow?'Ref: '+lastRealRow.dt:'Sem dados'}</div></div>
+    <div class="kpi" style="--kc:${desvioKC}"><div class="kpi-lbl">Desvio</div><div class="kpi-val" style="color:${desvioKC}">${desvioStr}</div><div class="kpi-sub">${desvioSub}</div></div>
     <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Vãos Concluídos</div><div class="kpi-val">${done}/16</div><div class="kpi-sub">100% completo</div></div>
     <div class="kpi" style="--kc:#f59e0b"><div class="kpi-lbl">Terças Perimetrais</div><div class="kpi-val">${tercas}%</div><div class="kpi-sub">15/05 → 07/07/26</div></div>
     <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Dias Decorridos</div><div class="kpi-val">${elapsed}</div><div class="kpi-sub">de ${total} dias totais</div></div>
