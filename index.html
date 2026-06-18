@@ -486,8 +486,8 @@ function overallGeral(){
 // TABS
 // ============================
 function showTab(id){
-  document.querySelectorAll('.tab-btn').forEach((b,i)=>{
-    b.classList.toggle('active',b.getAttribute('onclick').includes("'"+id+"'"));
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.classList.toggle('active',(b.getAttribute('onclick')||'').includes("'"+id+"'"));
   });
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
