@@ -119,6 +119,16 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .btn-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:.95rem;padding:2px 6px;border-radius:3px;transition:color .2s;line-height:1}
 .btn-del:hover{color:var(--red)}
 .today-tag{font-size:.64rem;background:rgba(245,184,0,.15);color:var(--yellow);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
+.btn-task-toggle{position:relative;background:rgba(245,184,0,.06);border:1px solid rgba(255,255,255,.12);color:var(--dim);cursor:pointer;font-size:.85rem;font-weight:700;width:24px;height:24px;border-radius:6px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:all .2s}
+.btn-task-toggle.has-tasks{border-color:rgba(245,184,0,.4);color:var(--yellow)}
+.btn-task-toggle:hover{background:rgba(245,184,0,.18);color:var(--yellow)}
+.task-badge{position:absolute;top:-5px;right:-5px;background:var(--yellow);color:#0d1520;font-size:.55rem;font-weight:800;border-radius:50%;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 2px}
+.curva-task-row td{background:rgba(255,255,255,.015);padding:10px 14px!important;text-align:left!important}
+.day-tasks-wrap{display:flex;flex-wrap:wrap;gap:7px}
+.day-task-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid;border-radius:6px;padding:5px 11px;font-size:.76rem}
+.day-task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.day-task-lbl{color:var(--text)}
+.day-task-pct{font-weight:700;margin-left:2px}
 @media(max-width:768px){.vaos-grid{grid-template-columns:repeat(2,1fr)}.phases-grid{grid-template-columns:1fr 1fr}}
 </style>
 </head>
@@ -219,6 +229,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
       <table class="cs-tbl">
         <thead>
           <tr>
+            <th style="width:30px"></th>
             <th style="width:40px">#</th>
             <th>Data</th>
             <th style="color:#3b82f6">Plan. Dia</th>
@@ -842,14 +853,62 @@ function renderCurvaS(){
   buildCurvaTable();
 }
 
+// Atividades (Vãos/Fases) cujo período programado cobre a data informada
+function tasksForDate(dt){
+  const tasks=[];
+  VAOS.forEach(v=>{
+    if(v.tesoura.start<=dt&&dt<=v.tesoura.end){
+      const pct=state.vaos[v.id]?.tesoura??v.tesoura.pct;
+      tasks.push({label:`Vão ${v.num} — Tesoura`,pct,color:pctColor(pct)});
+    }
+    if(v.pilar.start<=dt&&dt<=v.pilar.end){
+      const pct=state.vaos[v.id]?.pilar??v.pilar.pct;
+      tasks.push({label:`Vão ${v.num} — Pilar`,pct,color:pctColor(pct)});
+    }
+  });
+  PHASES.forEach(p=>{
+    if(p.start<=dt&&dt<=p.end){
+      const pct=state.phases[p.id]??p.pct;
+      tasks.push({label:p.label,pct,color:p.color});
+    }
+  });
+  return tasks;
+}
+
+function renderDayTasksHtml(tasks){
+  return `<div class="day-tasks-wrap">${tasks.map(t=>`
+    <div class="day-task-chip" style="border-color:${t.color}66">
+      <span class="day-task-dot" style="background:${t.color}"></span>
+      <span class="day-task-lbl">${t.label}</span>
+      <span class="day-task-pct" style="color:${t.color}">${t.pct}%</span>
+    </div>`).join('')}</div>`;
+}
+
+function toggleDayTasks(i){
+  const row=document.getElementById('crow-tasks-'+i);
+  const icon=document.getElementById('tt-icon-'+i);
+  if(!row)return;
+  const isOpen=row.style.display!=='none';
+  row.style.display=isOpen?'none':'table-row';
+  if(icon)icon.textContent=isOpen?'+':'−';
+}
+
 function buildCurvaTable(){
   const comp=computeCurvas(state.curvas);
   const rows=comp.map((row,i)=>{
     const isToday=row.dt===TODAY;
     const dc=row.desvioA===null?'var(--dim)':row.desvioA>=0?'#22c55e':'#ef4444';
     const dd=row.desvioD===null?'var(--dim)':row.desvioD>=0?'#22c55e':'#ef4444';
+    const trClass=isToday?'today-row':'';
     const trStyle=isToday?'style="background:rgba(245,184,0,0.07)"':'';
-    return `<tr id="crow-${i}" ${trStyle}>
+    const tasks=tasksForDate(row.dt);
+    const tc=tasks.length;
+    return `<tr id="crow-${i}" class="${trClass}" ${trStyle}>
+      <td>
+        <button class="btn-task-toggle${tc?' has-tasks':''}" onclick="toggleDayTasks(${i})" title="${tc?tc+' atividade(s) programada(s)':'Nenhuma atividade programada'}">
+          <span id="tt-icon-${i}">+</span>${tc?`<span class="task-badge">${tc}</span>`:''}
+        </button>
+      </td>
       <td style="color:var(--dim);white-space:nowrap">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
       <td><input class="cs-inp cs-inp-d" value="${row.dt}" onchange="updateCurva(${i},'dt',this.value)"></td>
       <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.planDia??''}" placeholder="—" oninput="updateCurva(${i},'planDia',this.value)" style="border-color:rgba(59,130,246,.25)"></td>
@@ -859,11 +918,14 @@ function buildCurvaTable(){
       <td style="color:${dd};font-weight:700">${row.desvioD===null?'—':(row.desvioD>=0?'+':'')+row.desvioD.toFixed(1)+'%'}</td>
       <td style="color:${dc};font-weight:700">${row.desvioA===null?'—':(row.desvioA>=0?'+':'')+row.desvioA.toFixed(1)+'%'}</td>
       <td><button class="btn-del" onclick="deleteRow(${i})" title="Remover linha">✕</button></td>
+    </tr>
+    <tr id="crow-tasks-${i}" class="curva-task-row" style="display:none">
+      <td colspan="10">${tc?renderDayTasksHtml(tasks):'<span style="color:var(--dim);font-size:.78rem">Nenhuma atividade programada para este dia.</span>'}</td>
     </tr>`;
   }).join('');
   document.getElementById('curva-tbody').innerHTML=rows;
   // Rolar até hoje
-  const todayRow=document.getElementById('curva-tbody').querySelector('tr[style]');
+  const todayRow=document.getElementById('curva-tbody').querySelector('tr.today-row');
   if(todayRow)setTimeout(()=>todayRow.scrollIntoView({block:'center',behavior:'smooth'}),100);
 }
 
