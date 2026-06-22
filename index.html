@@ -303,31 +303,31 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 // DATA
 // ============================
 const VAOS = [
-  {id:'v1',  num:1,  start:'2026-05-19',end:'2026-06-08', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-02'}, pilar:{pct:75, start:'2026-06-02',end:'2026-06-08'}},
+  {id:'v1',  num:1,  start:'2026-05-19',end:'2026-06-05', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-02'}, pilar:{pct:100,start:'2026-06-02',end:'2026-06-05'}},
   {id:'v2',  num:2,  start:'2026-05-19',end:'2026-06-05', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-02'}, pilar:{pct:83, start:'2026-06-02',end:'2026-06-05'}},
   {id:'v3',  num:3,  start:'2026-05-19',end:'2026-06-16', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-16'}, pilar:{pct:100,start:'2026-06-09',end:'2026-06-16'}},
-  {id:'v4',  num:4,  start:'2026-05-19',end:'2026-06-19', tesoura:{pct:67, start:'2026-05-19',end:'2026-06-17'}, pilar:{pct:0,  start:'2026-06-17',end:'2026-06-19'}},
-  {id:'v5',  num:5,  start:'2026-06-15',end:'2026-06-18', tesoura:{pct:67, start:'2026-06-15',end:'2026-06-18'}, pilar:{pct:0,  start:'2026-03-25',end:'2026-06-16'}},
-  {id:'v6',  num:6,  start:'2026-06-17',end:'2026-07-01', tesoura:{pct:0,  start:'2026-06-17',end:'2026-07-01'}, pilar:{pct:0,  start:'2026-06-18',end:'2026-07-01'}},
-  {id:'v7',  num:7,  start:'2026-06-19',end:'2026-07-02', tesoura:{pct:0,  start:'2026-06-19',end:'2026-07-02'}, pilar:{pct:0,  start:'2026-06-22',end:'2026-07-02'}},
-  {id:'v8',  num:8,  start:'2026-06-23',end:'2026-07-03', tesoura:{pct:0,  start:'2026-06-23',end:'2026-07-03'}, pilar:{pct:0,  start:'2026-06-24',end:'2026-07-03'}},
-  {id:'v9',  num:9,  start:'2026-06-25',end:'2026-07-06', tesoura:{pct:0,  start:'2026-06-25',end:'2026-07-06'}, pilar:{pct:0,  start:'2026-06-26',end:'2026-07-06'}},
-  {id:'v10', num:10, start:'2026-06-29',end:'2026-07-07', tesoura:{pct:0,  start:'2026-06-29',end:'2026-07-07'}, pilar:{pct:0,  start:'2026-06-30',end:'2026-07-07'}},
-  {id:'v11', num:11, start:'2026-07-01',end:'2026-07-09', tesoura:{pct:0,  start:'2026-07-01',end:'2026-07-09'}, pilar:{pct:0,  start:'2026-07-02',end:'2026-07-09'}},
-  {id:'v12', num:12, start:'2026-07-03',end:'2026-07-10', tesoura:{pct:0,  start:'2026-07-03',end:'2026-07-10'}, pilar:{pct:0,  start:'2026-07-06',end:'2026-07-10'}},
-  {id:'v13', num:13, start:'2026-07-07',end:'2026-07-13', tesoura:{pct:0,  start:'2026-07-07',end:'2026-07-13'}, pilar:{pct:0,  start:'2026-07-08',end:'2026-07-13'}},
-  {id:'v14', num:14, start:'2026-07-09',end:'2026-07-14', tesoura:{pct:0,  start:'2026-07-09',end:'2026-07-14'}, pilar:{pct:0,  start:'2026-03-25',end:'2026-07-10'}},
-  {id:'v15', num:15, start:'2026-07-10',end:'2026-07-15', tesoura:{pct:0,  start:'2026-07-10',end:'2026-07-14'}, pilar:{pct:0,  start:'2026-07-13',end:'2026-07-15'}},
-  {id:'v16', num:16, start:'2026-07-13',end:'2026-07-16', tesoura:{pct:0,  start:'2026-07-13',end:'2026-07-15'}, pilar:{pct:0,  start:'2026-07-14',end:'2026-07-16'}},
+  {id:'v4',  num:4,  start:'2026-05-19',end:'2026-06-17', tesoura:{pct:83, start:'2026-05-19',end:'2026-06-16'}, pilar:{pct:80, start:'2026-06-16',end:'2026-06-17'}},
+  {id:'v5',  num:5,  start:'2026-06-15',end:'2026-06-17', tesoura:{pct:100,start:'2026-06-15',end:'2026-06-17'}, pilar:{pct:75, start:'2026-06-17',end:'2026-06-17'}},
+  {id:'v6',  num:6,  start:'2026-06-18',end:'2026-06-29', tesoura:{pct:67, start:'2026-06-18',end:'2026-06-26'}, pilar:{pct:67, start:'2026-06-19',end:'2026-06-29'}},
+  {id:'v7',  num:7,  start:'2026-06-19',end:'2026-06-30', tesoura:{pct:50, start:'2026-06-19',end:'2026-06-29'}, pilar:{pct:50, start:'2026-06-19',end:'2026-06-30'}},
+  {id:'v8',  num:8,  start:'2026-06-22',end:'2026-07-01', tesoura:{pct:67, start:'2026-06-22',end:'2026-06-30'}, pilar:{pct:67, start:'2026-06-22',end:'2026-07-01'}},
+  {id:'v9',  num:9,  start:'2026-06-22',end:'2026-07-02', tesoura:{pct:15, start:'2026-06-22',end:'2026-07-01'}, pilar:{pct:15, start:'2026-06-22',end:'2026-07-02'}},
+  {id:'v10', num:10, start:'2026-06-24',end:'2026-07-03', tesoura:{pct:0,  start:'2026-06-24',end:'2026-07-02'}, pilar:{pct:0,  start:'2026-06-25',end:'2026-07-03'}},
+  {id:'v11', num:11, start:'2026-06-26',end:'2026-07-07', tesoura:{pct:0,  start:'2026-06-26',end:'2026-07-06'}, pilar:{pct:0,  start:'2026-06-29',end:'2026-07-07'}},
+  {id:'v12', num:12, start:'2026-06-30',end:'2026-07-08', tesoura:{pct:0,  start:'2026-06-30',end:'2026-07-07'}, pilar:{pct:0,  start:'2026-07-01',end:'2026-07-08'}},
+  {id:'v13', num:13, start:'2026-07-02',end:'2026-07-09', tesoura:{pct:0,  start:'2026-07-02',end:'2026-07-08'}, pilar:{pct:0,  start:'2026-07-03',end:'2026-07-09'}},
+  {id:'v14', num:14, start:'2026-07-06',end:'2026-07-09', tesoura:{pct:0,  start:'2026-07-06',end:'2026-07-09'}, pilar:{pct:0,  start:'2026-07-07',end:'2026-07-08'}},
+  {id:'v15', num:15, start:'2026-07-07',end:'2026-07-10', tesoura:{pct:0,  start:'2026-07-07',end:'2026-07-10'}, pilar:{pct:0,  start:'2026-07-08',end:'2026-07-10'}},
+  {id:'v16', num:16, start:'2026-07-08',end:'2026-07-13', tesoura:{pct:0,  start:'2026-07-08',end:'2026-07-13'}, pilar:{pct:0,  start:'2026-07-09',end:'2026-07-13'}},
 ];
 
 const PHASES = [
-  {id:'tercas',    label:'Terças Perimetrais',       color:'#f59e0b', start:'2026-05-15',end:'2026-07-07', pct:52},
-  {id:'telhas',    label:'Substituição de Telhas',   color:'#8b5cf6', start:'2026-07-08',end:'2026-08-20', pct:0},
-  {id:'linhavida', label:'Linha de Vida Definitiva', color:'#14b8a6', start:'2026-08-21',end:'2026-08-25', pct:0},
-  {id:'spda',      label:'SPDA',                     color:'#3b82f6', start:'2026-08-21',end:'2026-08-26', pct:0},
-  {id:'entrega',   label:'Entrega / Desmobilização', color:'#22c55e', start:'2026-08-27',end:'2026-08-31', pct:0},
-  {id:'relatorios',label:'Relatórios / As Built / ART',color:'#64748b',start:'2026-08-27',end:'2026-08-31', pct:0},
+  {id:'tercas',    label:'Terças Perimetrais',       color:'#f59e0b', start:'2026-05-15',end:'2026-07-06', pct:63},
+  {id:'telhas',    label:'Substituição de Telhas',   color:'#8b5cf6', start:'2026-07-07',end:'2026-08-19', pct:0},
+  {id:'linhavida', label:'Linha de Vida Definitiva', color:'#14b8a6', start:'2026-08-20',end:'2026-08-24', pct:0},
+  {id:'spda',      label:'SPDA',                     color:'#3b82f6', start:'2026-08-20',end:'2026-08-25', pct:0},
+  {id:'entrega',   label:'Entrega / Desmobilização', color:'#22c55e', start:'2026-08-26',end:'2026-08-28', pct:0},
+  {id:'relatorios',label:'Relatórios / As Built / ART',color:'#64748b',start:'2026-08-26',end:'2026-08-28', pct:0},
 ];
 
 const PROJ_START = '2026-03-25';
@@ -508,7 +508,7 @@ function showTab(id){
   });
   document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  if(id==='curvas'){setTimeout(drawCurvaS,50);}
+  if(id==='curvas'){setTimeout(renderCurvaS,50);}
   if(id==='cronograma'){renderGantt();}
 }
 
@@ -538,7 +538,7 @@ function renderDashboard(){
     <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Avanço Real</div><div class="kpi-val" style="color:#22c55e">${realAcum!=null?realAcum.toFixed(1)+'%':'—'}</div><div class="kpi-sub">${lastRealRow?'Ref: '+lastRealRow.dt:'Sem dados'}</div></div>
     <div class="kpi" style="--kc:${desvioKC}"><div class="kpi-lbl">Desvio</div><div class="kpi-val" style="color:${desvioKC}">${desvioStr}</div><div class="kpi-sub">${desvioSub}</div></div>
     <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Vãos Concluídos</div><div class="kpi-val">${done}/16</div><div class="kpi-sub">100% completo</div></div>
-    <div class="kpi" style="--kc:#f59e0b"><div class="kpi-lbl">Terças Perimetrais</div><div class="kpi-val">${tercas}%</div><div class="kpi-sub">15/05 → 07/07/26</div></div>
+    <div class="kpi" style="--kc:#f59e0b"><div class="kpi-lbl">Terças Perimetrais</div><div class="kpi-val">${tercas}%</div><div class="kpi-sub">15/05 → 06/07/26</div></div>
     <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Dias Decorridos</div><div class="kpi-val">${elapsed}</div><div class="kpi-sub">de ${total} dias totais</div></div>
     <div class="kpi" style="--kc:#ef4444"><div class="kpi-lbl">Dias Restantes</div><div class="kpi-val">${remaining}</div><div class="kpi-sub">Término: 31/08/2026</div></div>
   `;
@@ -687,7 +687,7 @@ function renderGantt(){
 function buildGanttTasks(){
   const t=[];
   t.push({label:'TERÇAS PERIMETRAIS',group:true});
-  t.push({label:'Terças Perimetrais',start:'2026-05-15',end:'2026-07-07',pct:state.phases.tercas,color:'#f59e0b'});
+  t.push({label:'Terças Perimetrais',start:'2026-05-15',end:'2026-07-06',pct:state.phases.tercas,color:'#f59e0b'});
   t.push({label:'RECUPERAÇÃO ESTRUTURAL',group:true});
   VAOS.forEach(v=>{
     const s=state.vaos[v.id];
@@ -859,11 +859,11 @@ function tasksForDate(dt){
   VAOS.forEach(v=>{
     if(v.tesoura.start<=dt&&dt<=v.tesoura.end){
       const pct=state.vaos[v.id]?.tesoura??v.tesoura.pct;
-      tasks.push({label:`Vão ${v.num} — Tesoura`,pct,color:pctColor(pct)});
+      tasks.push({label:`Recuperação Estrutural — Vão ${v.num} — Tesoura`,pct,color:pctColor(pct)});
     }
     if(v.pilar.start<=dt&&dt<=v.pilar.end){
       const pct=state.vaos[v.id]?.pilar??v.pilar.pct;
-      tasks.push({label:`Vão ${v.num} — Pilar`,pct,color:pctColor(pct)});
+      tasks.push({label:`Recuperação Estrutural — Vão ${v.num} — Pilar`,pct,color:pctColor(pct)});
     }
   });
   PHASES.forEach(p=>{
@@ -1160,7 +1160,7 @@ function saveEdit(){
   state.phases.spda=parseInt(document.getElementById('ep-spda').value)||0;
   state.phases.entrega=parseInt(document.getElementById('ep-entrega').value)||0;
   save();closeEdit();
-  renderDashboard();renderMapa();renderTarefas();renderIndicadores();
+  renderDashboard();renderMapa();renderTarefas();renderIndicadores();buildCurvaTable();
   if(document.getElementById('tab-cronograma').classList.contains('active'))renderGantt();
 }
 
