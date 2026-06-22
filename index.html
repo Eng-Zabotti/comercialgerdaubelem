@@ -119,10 +119,10 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .btn-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:.95rem;padding:2px 6px;border-radius:3px;transition:color .2s;line-height:1}
 .btn-del:hover{color:var(--red)}
 .today-tag{font-size:.64rem;background:rgba(245,184,0,.15);color:var(--yellow);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
-.btn-task-toggle{position:relative;background:rgba(245,184,0,.06);border:1px solid rgba(255,255,255,.12);color:var(--dim);cursor:pointer;font-size:.85rem;font-weight:700;width:24px;height:24px;border-radius:6px;line-height:1;display:inline-flex;align-items:center;justify-content:center;transition:all .2s}
-.btn-task-toggle.has-tasks{border-color:rgba(245,184,0,.4);color:var(--yellow)}
-.btn-task-toggle:hover{background:rgba(245,184,0,.18);color:var(--yellow)}
-.task-badge{position:absolute;top:-5px;right:-5px;background:var(--yellow);color:#0d1520;font-size:.55rem;font-weight:800;border-radius:50%;min-width:14px;height:14px;display:flex;align-items:center;justify-content:center;line-height:1;padding:0 2px}
+.btn-task-toggle{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.15);color:var(--dim);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em;padding:6px 10px;border-radius:6px;line-height:1;transition:all .2s;white-space:nowrap}
+.btn-task-toggle .tt-plus{font-size:.95rem;font-weight:800}
+.btn-task-toggle.has-tasks{border-color:rgba(245,184,0,.55);background:rgba(245,184,0,.12);color:var(--yellow)}
+.btn-task-toggle:hover{background:rgba(245,184,0,.22);color:var(--yellow);border-color:var(--yellow)}
 .curva-task-row td{background:rgba(255,255,255,.015);padding:10px 14px!important;text-align:left!important}
 .day-tasks-wrap{display:flex;flex-wrap:wrap;gap:7px}
 .day-task-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid;border-radius:6px;padding:5px 11px;font-size:.76rem}
@@ -229,7 +229,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
       <table class="cs-tbl">
         <thead>
           <tr>
-            <th style="width:30px"></th>
+            <th style="width:118px">Tarefas do Dia</th>
             <th style="width:40px">#</th>
             <th>Data</th>
             <th style="color:#3b82f6">Plan. Dia</th>
@@ -905,8 +905,8 @@ function buildCurvaTable(){
     const tc=tasks.length;
     return `<tr id="crow-${i}" class="${trClass}" ${trStyle}>
       <td>
-        <button class="btn-task-toggle${tc?' has-tasks':''}" onclick="toggleDayTasks(${i})" title="${tc?tc+' atividade(s) programada(s)':'Nenhuma atividade programada'}">
-          <span id="tt-icon-${i}">+</span>${tc?`<span class="task-badge">${tc}</span>`:''}
+        <button class="btn-task-toggle${tc?' has-tasks':''}" onclick="toggleDayTasks(${i})" title="${tc?tc+' atividade(s) programada(s) neste dia — clique para ver':'Nenhuma atividade programada neste dia'}">
+          <span class="tt-plus" id="tt-icon-${i}">+</span><span id="tt-lbl-${i}">${tc?tc+' tarefa'+(tc>1?'s':''):'nenhuma'}</span>
         </button>
       </td>
       <td style="color:var(--dim);white-space:nowrap">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
