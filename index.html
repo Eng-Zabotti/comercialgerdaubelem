@@ -320,8 +320,10 @@ const PHASES = [
 ];
 
 const PROJ_START = '2026-03-25';
+const OBRA_START = '2026-05-11';
 const PROJ_END   = '2026-08-31';
-const TODAY      = new Date().toISOString().slice(0,10);
+function todayISO(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
+const TODAY      = todayISO();
 
 const DEFAULT_CURVAS = [
   {dt:'2026-05-11',planDia:1,  realDia:1},
@@ -515,8 +517,8 @@ function renderDashboard(){
   const desvioStr=desvio==null?'—':(desvio>=0?'+':'')+desvio.toFixed(1)+'%';
   const desvioSub=desvio==null?'Sem dados':desvio>0?'Adiantado':desvio===0?'No prazo':'Atrasado';
 
-  const elapsed=daysBetween(PROJ_START,TODAY);
-  const total=daysBetween(PROJ_START,PROJ_END);
+  const elapsed=daysBetween(OBRA_START,TODAY);
+  const total=daysBetween(OBRA_START,PROJ_END);
   const remaining=daysBetween(TODAY,PROJ_END);
   const done=VAOS.filter(v=>vaoOverall(v.id)===100).length;
   const tercas=state.phases.tercas;
