@@ -1205,11 +1205,16 @@ function save(){
 window.onFirebaseUpdate=function(data,isFirst){
   if(!data){
     if(state&&state._upd){
-      // Este navegador já tem dados reais que a nuvem ainda não tem — semeia o banco.
       if(typeof window.firebaseSave==='function')window.firebaseSave(state);
     } else if(isFirst){
       document.getElementById('last-upd').textContent='Sem dados salvos ainda';
     }
+    return;
+  }
+  // Só usa dados do Firebase se forem mais recentes que os dados locais
+  if(state&&state._upd&&(!data._upd||state._upd>data._upd)){
+    if(typeof window.firebaseSave==='function')window.firebaseSave(state);
+    document.getElementById('last-upd').textContent=new Date(state._upd).toLocaleString('pt-BR');
     return;
   }
   state=data;
