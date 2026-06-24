@@ -298,6 +298,31 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
   <button style="width:100%;padding:9px;background:transparent;color:var(--dim);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;margin-top:8px" onclick="closeEdit()">Cancelar</button>
 </div>
 
+<script type="module">
+// Sincronização compartilhada (Firebase Realtime Database) — todos os usuários
+// leem/escrevem o mesmo estado, em vez de cada navegador ter sua cópia isolada.
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
+import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyAIeb3v79NbksPD3T1zI4XSzHr5qqNTAWc",
+  authDomain: "gerdau-belem.firebaseapp.com",
+  databaseURL: "https://gerdau-belem-default-rtdb.firebaseio.com",
+  projectId: "gerdau-belem",
+  storageBucket: "gerdau-belem.firebasestorage.app",
+  messagingSenderId: "547624741013",
+  appId: "1:547624741013:web:ff218a59bc68aa1151939c"
+};
+const fbApp = initializeApp(firebaseConfig);
+const fbDb = getDatabase(fbApp);
+const fbStateRef = ref(fbDb, 'state');
+window.firebaseSave = (data) => set(fbStateRef, data).catch(e=>console.error('Firebase save falhou:', e));
+let fbFirst = true;
+onValue(fbStateRef, (snap) => {
+  if (window.onFirebaseUpdate) window.onFirebaseUpdate(snap.val(), fbFirst);
+  fbFirst = false;
+}, (err) => console.error('Firebase leitura falhou:', err));
+</script>
+
 <script>
 // ============================
 // DATA
@@ -1172,7 +1197,28 @@ function save(){
   state._upd=new Date().toISOString();
   localStorage.setItem(SK,JSON.stringify(state));
   document.getElementById('last-upd').textContent=new Date().toLocaleString('pt-BR');
+  if(typeof window.firebaseSave==='function')window.firebaseSave(state);
 }
+
+// Chamado pelo módulo Firebase sempre que o estado compartilhado muda
+// (na carga inicial e em tempo real quando qualquer usuário salva algo).
+window.onFirebaseUpdate=function(data,isFirst){
+  if(!data){
+    if(state&&state._upd){
+      // Este navegador já tem dados reais que a nuvem ainda não tem — semeia o banco.
+      if(typeof window.firebaseSave==='function')window.firebaseSave(state);
+    } else if(isFirst){
+      document.getElementById('last-upd').textContent='Sem dados salvos ainda';
+    }
+    return;
+  }
+  state=data;
+  localStorage.setItem(SK,JSON.stringify(state));
+  document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):'—';
+  renderDashboard();renderMapa();renderTarefas();renderIndicadores();renderCurvaS();
+  if(document.getElementById('tab-cronograma').classList.contains('active'))renderGantt();
+};
+
 function load(){
   try{
     const raw=localStorage.getItem(SK);
@@ -1187,7 +1233,7 @@ function load(){
       state=DEFAULT_STATE();
     }
   }catch(e){state=DEFAULT_STATE();}
-  document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):new Date().toLocaleString('pt-BR');
+  document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):'Carregando da nuvem…';
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
