@@ -53,11 +53,14 @@ const TELHA_LOCS=[
   {k:'cobEsq', l:'Cob. Esq.',  c:'#3B82F6'},
   {k:'cobDir', l:'Cob. Dir.',  c:'#2563EB'},
   {k:'lant',   l:'Lanternin',  c:'#8B5CF6'},
-  {k:'fechDir',l:'Fech. Dir.', c:'#0EA5E9'},
+  {k:'fechDir',l:'Fech. Docas',c:'#0EA5E9'},
 ];
 const nBays=cfg=>Math.max(0,(+(cfg&&cfg.eixos)||1)-1);        // vãos de telha = eixos-1
 const LANT_MARGIN=1;                                          // lanternin recuado 1 vão em cada ponta
 const hasLant=(cfg,b)=>{const nb=nBays(cfg);return b>=1+LANT_MARGIN&&b<=nb-LANT_MARGIN;};
+// Vãos com doca (abertura) — SÓ o lado das docas tem fechamento substituído (avanço); o outro lado é cinza contínuo (d)
+const dockBaysOf=cfg=>{const nb=nBays(cfg);return new Set([Math.round(nb*0.28),Math.round(nb*0.55),nb].filter(b=>b>=1));};
+const isDock=(cfg,b)=>dockBaysOf(cfg).has(b);
 function ensureBay(telhas,b){
   const x=(telhas&&telhas.bays&&telhas.bays[b])||{};
   const clamp=v=>Math.max(0,Math.min(TILES_PER_BAY,+v||0));
@@ -69,8 +72,9 @@ function calcTelhas(project){
   const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},frontal:{i:0,t:0}};
   for(let b=1;b<=NB;b++){
     const bd=ensureBay(telhas,b);
-    ['cobEsq','cobDir','fechDir'].forEach(k=>{loc[k].i+=bd[k];loc[k].t+=TILES_PER_BAY;});
+    ['cobEsq','cobDir'].forEach(k=>{loc[k].i+=bd[k];loc[k].t+=TILES_PER_BAY;});
     if(hasLant(project.config,b)){loc.lant.i+=bd.lant;loc.lant.t+=TILES_PER_BAY;}  // lanternin só nos vãos centrais
+    if(!isDock(project.config,b)){loc.fechDir.i+=bd.fechDir;loc.fechDir.t+=TILES_PER_BAY;}  // fechamento (avanço) só nos vãos sem doca
   }
   loc.frontal.i=Math.max(0,Math.min(NF,+telhas.frontal||0));loc.frontal.t=NF;
   let wi=0,wt=0;
@@ -467,16 +471,17 @@ function Vista3D({project}){
     const sw=spX/TILES_PER_BAY, gap=0.06;
     for(let b=1;b<=NB;b++){
       const xb0=X0+(b-1)*spX;
+      const lant=hasLant(cfg,b), dock=isDock(cfg,b);
+      const zE=lant?-lantW/2:0, zD=lant?lantW/2:0;   // recuo (sem lanternin): telhas se encontram na cumeeira central (e)
       for(let j=0;j<TILES_PER_BAY;j++){
         const xc=xb0+(j+0.5)*sw, w=sw*(1-gap);
-        stripMap[`cobEsq_${b}_${j}`]=ramp(xc,w, zL,yEave, -lantW/2,yRidge);
-        stripMap[`cobDir_${b}_${j}`]=ramp(xc,w, zR,yEave,  lantW/2,yRidge);
-        // lanternin: 1 telha cobre as duas águas pequenas do monitor (só nos vãos centrais)
-        if(hasLant(cfg,b)){
+        stripMap[`cobEsq_${b}_${j}`]=ramp(xc,w, zL,yEave, zE,yRidge);
+        stripMap[`cobDir_${b}_${j}`]=ramp(xc,w, zR,yEave, zD,yRidge);
+        if(lant){  // lanternin: 1 telha por água do monitor (só nos vãos centrais)
           stripMap[`lant_${b}_${j}`] =ramp(xc,w, -lantW/2,yLantTop, 0,yLantRidge);
           stripMap[`lant2_${b}_${j}`]=ramp(xc,w,  lantW/2,yLantTop, 0,yLantRidge);
         }
-        stripMap[`fechDir_${b}_${j}`]=wall(xc,w, zL, 0.05, hC);  // fechamento (azul) na parede esquerda
+        if(!dock) stripMap[`fechDir_${b}_${j}`]=wall(xc,w, zR, 0.05, hC);  // fechamento (avanço azul) no lado das docas (zR); vãos de doca ficam abertos (d)
       }
     }
     // Lanternin recuado 1 vão/ponta: clerestório (janelas) + empenas de ponta + tampa nos vãos das pontas
@@ -491,20 +496,13 @@ function Vista3D({project}){
         scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide})));
       });
     }
-    for(let b=1;b<=NB;b++){  // tampa plana na cumeeira dos vãos sem lanternin (fecha a fresta)
-      if(hasLant(cfg,b))continue;
-      const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.99,lantW),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
-      m.rotation.x=-Math.PI/2;m.position.set(X0+(b-1)*spX+spX/2,yRidge,0);scene.add(m);
-    }
-    // Parede DIREITA (Z=zR): metálica, com aberturas de docas (g.8/h.9) — sem avanço
-    const dockBays=new Set([Math.round(NB*0.28),Math.round(NB*0.55),NB]);  // última doca no último vão
+    // Parede ESQUERDA (Z=zL): fechamento CONTÍNUO metálico (lado oposto às docas) — cinza, sem avanço (d/h.9)
     for(let b=1;b<=NB;b++){
-      if(dockBays.has(b))continue;
       const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.98,hC),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
-      m.position.set(X0+(b-1)*spX+spX/2,hC/2,zR);scene.add(m);
+      m.position.set(X0+(b-1)*spX+spX/2,hC/2,zL);scene.add(m);
     }
-    // Oitão frontal (X0): telhas substituídas, altura acompanha a empena. Fundo (X0+L) fica aberto. Docas inalteradas.
-    const gY=z=>{const az=Math.min(spZ/2,Math.abs(z));return yEave+(yRidge+lantCap*0.6-yEave)*(1-az/(spZ/2));};
+    // Oitão frontal (X0): telhas substituídas (avanço). Pico na cumeeira yRidge (ponta de recuo, sem lanternin). Fundo (X0+L) aberto.
+    const gY=z=>{const az=Math.min(spZ/2,Math.abs(z));return yEave+(yRidge-yEave)*(1-az/(spZ/2));};
     const fW=spZ/NF, yBase=hC*0.6;
     for(let j=0;j<NF;j++){
       const zc=zL+(j+0.5)*fW, yTop=gY(zc), h=Math.max(0.4,yTop-yBase);
@@ -514,10 +512,13 @@ function Vista3D({project}){
     // Contornos (definição)
     const line=(a,b,c=0x334155)=>{const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a),new THREE.Vector3(...b)]);scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:c})));};
     line([X0,yEave,zL],[X0+L,yEave,zL]); line([X0,yEave,zR],[X0+L,yEave,zR]);
-    line([X0,yRidge,-lantW/2],[X0+L,yRidge,-lantW/2]); line([X0,yRidge,lantW/2],[X0+L,yRidge,lantW/2]);
     if(lTo>=lFrom){
+      line([xL0,yRidge,-lantW/2],[xL1,yRidge,-lantW/2]); line([xL0,yRidge,lantW/2],[xL1,yRidge,lantW/2]);
+      line([X0,yRidge,0],[xL0,yRidge,0]); line([xL1,yRidge,0],[X0+L,yRidge,0]);   // cumeeira central nos recuos
       line([xL0,yLantTop,-lantW/2],[xL1,yLantTop,-lantW/2]); line([xL0,yLantTop,lantW/2],[xL1,yLantTop,lantW/2]);
       line([xL0,yLantRidge,0],[xL1,yLantRidge,0]);
+    } else {
+      line([X0,yRidge,0],[X0+L,yRidge,0]);   // sem lanternin: cumeeira central contínua
     }
     [[X0,zL],[X0,zR],[X0+L,zL],[X0+L,zR]].forEach(([x,z])=>line([x,0,z],[x,yEave,z]));
 
@@ -760,7 +761,7 @@ function TelhasIndicadores({info}){
     {k:'cobEsq',l:'Cobertura Esq.',c:'#3B82F6'},
     {k:'cobDir',l:'Cobertura Dir.',c:'#2563EB'},
     {k:'lant',l:'Lanternin',c:'#8B5CF6'},
-    {k:'fechDir',l:'Fechamento Dir.',c:'#0EA5E9'},
+    {k:'fechDir',l:'Fech. (docas)',c:'#0EA5E9'},
     {k:'frontal',l:'Frontal',c:'#6366F1'},
   ];
   return(
@@ -805,6 +806,7 @@ function TabTelhas({project,canEdit,onUpdate}){
     const bays={...(telhas.bays||{})};
     for(let b=1;b<=NB;b++){
       if(k==='lant'&&!hasLant(project.config,b))continue;   // lanternin não cobre as pontas
+      if(k==='fechDir'&&isDock(project.config,b))continue;  // fechamento não existe nos vãos de doca
       bays[b]={...ensureBay(telhas,b),[k]:v};
     }
     onUpdate({...project,telhas:{...telhas,bays}});
@@ -852,16 +854,20 @@ function TabTelhas({project,canEdit,onUpdate}){
             {Array.from({length:NB},(_,i)=>i+1).map(b=>{
               const bd=ensureBay(project.telhas||{},b);
               const lantOk=hasLant(project.config,b);
-              const full=bd.cobEsq>=7&&bd.cobDir>=7&&bd.fechDir>=7&&(!lantOk||bd.lant>=7);
+              const dockB=isDock(project.config,b);
+              const full=bd.cobEsq>=7&&bd.cobDir>=7&&(dockB||bd.fechDir>=7)&&(!lantOk||bd.lant>=7);
               return(
                 <tr key={b} className={full?'bg-green-50':'bg-white'} style={{boxShadow:'0 1px 0 #F1F5F9'}}>
                   <td className="px-2 py-1.5 font-mono font-bold text-gray-600 whitespace-nowrap">E{pad2(b)}–E{pad2(b+1)}</td>
                   {TELHA_LOCS.map(L=>{
                     const naLant=L.k==='lant'&&!lantOk;
+                    const naFech=L.k==='fechDir'&&dockB;
                     return(
                     <td key={L.k} className="px-2 py-1.5 text-center">
                       {naLant
                         ? <span className="text-gray-300 text-xs" title="Sem lanternin neste vão">—</span>
+                        : naFech
+                        ? <span className="text-gray-300 text-xs" title="Vão de doca (abertura) — sem telha de fechamento">—</span>
                         : canEdit
                           ? <Stepper val={bd[L.k]} max={TILES_PER_BAY} onChange={v=>setBay(b,{[L.k]:v})}/>
                           : <span className={`font-bold tabular-nums ${bd[L.k]>=7?'text-green-600':bd[L.k]>0?'text-blue-700':'text-gray-300'}`}>{bd[L.k]}/7</span>}
@@ -885,206 +891,6 @@ function TabTelhas({project,canEdit,onUpdate}){
       <p className="text-xs text-gray-400 text-center">
         {canEdit?'Cada vão tem 7 telhas por local · toque em − / + para lançar as telhas instaladas':'👁️ Modo visualização — somente leitura'}
       </p>
-    </div>
-  );
-}
-
-/* ═══════════════ CURVA S ═══════════════ */
-function TabCurvaS({project,obraCode,canEdit}){
-  const[snaps,setSnaps]=useState({});
-  const[saving,setSaving]=useState(false);
-  const[msg,setMsg]=useState('');
-  const[modalOpen,setModalOpen]=useState(false);
-  const[modalVal,setModalVal]=useState('');
-  const today=new Date().toISOString().split('T')[0];
-
-  useEffect(()=>{
-    if(!db||!obraCode)return;
-    const ref=db.ref(`/obras/${obraCode}/snapshots`);
-    ref.on('value',s=>setSnaps(s.val()||{}));
-    return()=>ref.off('value');
-  },[obraCode]);
-
-  const elPct=useMemo(()=>{
-    const els=Object.values(project.elements||{});
-    if(!els.length)return 0;
-    const done=els.filter(e=>e.status==='completo').length;
-    return Math.round(done/els.length*10000)/100;
-  },[project.elements]);
-
-  const abrirModal=()=>{setModalVal(elPct.toFixed(2));setModalOpen(true);};
-
-  const salvar=async()=>{
-    const raw=(modalVal||'').replace(',','.');
-    const v=parseFloat(raw);
-    if(isNaN(v)||v<0||v>100){setMsg('% inválido (0-100)');return;}
-    setSaving(true);
-    await db.ref(`/obras/${obraCode}/snapshots/${today}`).set({pct:v,ts:Date.now()});
-    setSaving(false);setMsg('Registrado ✓');setModalOpen(false);setTimeout(()=>setMsg(''),2500);
-  };
-
-  const TASKS=[
-    {w:1, s:'2026-05-11',e:'2026-05-11'},
-    {w:8, s:'2026-05-15',e:'2026-07-07'},
-    {w:64,s:'2026-05-19',e:'2026-07-16'},
-    {w:20,s:'2026-07-08',e:'2026-08-20'},
-    {w:7, s:'2026-08-21',e:'2026-08-26'},
-    {w:2, s:'2026-08-27',e:'2026-08-31'},
-  ];
-  const START=new Date('2026-05-11');
-  const END=new Date('2026-08-31');
-  const NDAYS=Math.ceil((END-START)/86400000)+1;
-
-  const planned=useMemo(()=>{
-    const raw=[];
-    for(let d=0;d<NDAYS;d++){
-      const dt=new Date(START.getTime()+d*86400000);
-      let p=0;
-      for(const t of TASKS){
-        const ts=new Date(t.s),te=new Date(t.e);
-        if(dt>=ts&&dt<=te) p+=t.w/((te-ts)/86400000+1);
-      }
-      raw.push(p);
-    }
-    const tot=raw.reduce((a,b)=>a+b,0),fac=100/tot;
-    let sum=0;
-    return raw.map(p=>{sum+=p*fac;return Math.round(sum*100)/100;});
-  },[]);
-
-  const realPts=useMemo(()=>Object.entries(snaps).map(([d,v])=>({date:d,pct:v.pct})).sort((a,b)=>a.date.localeCompare(b.date)),[snaps]);
-
-  const dIdx=d=>Math.max(0,Math.min(NDAYS-1,Math.ceil((new Date(d)-START)/86400000)));
-  const todayPlan=planned[dIdx(today)]||0;
-  const lastReal=realPts.length?realPts[realPts.length-1].pct:0;
-  const vari=lastReal-todayPlan;
-
-  const CW=560,CH=200;
-  const px=d=>(dIdx(d)/(NDAYS-1))*(CW-52)+36;
-  const py=p=>CH-24-(p/100)*(CH-44);
-  const planPath=planned.filter((_,i)=>i%3===0).map((p,i)=>`${i===0?'M':'L'}${36+(i*3/(NDAYS-1))*(CW-52)},${py(p)}`).join('');
-  const realPath=realPts.map((pt,i)=>`${i===0?'M':'L'}${px(pt.date)},${py(pt.pct)}`).join('');
-  const todayX=px(today);
-  const meses=['mai','jun','jul','ago'];
-  const mesMarks=meses.map((_,i)=>{const d=new Date(2026,4+i,1);return{x:px(d.toISOString().split('T')[0]),l:meses[i]};});
-
-  return(
-    <div className="space-y-4">
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-blue-50 rounded-xl p-3 text-center">
-          <div className="text-2xl font-extrabold text-blue-700">{todayPlan.toFixed(2)}%</div>
-          <div className="text-xs text-blue-500 mt-0.5">Planejado acum.</div>
-        </div>
-        <div className="bg-green-50 rounded-xl p-3 text-center">
-          <div className="text-2xl font-extrabold text-green-700">{lastReal.toFixed(2)}%</div>
-          <div className="text-xs text-green-500 mt-0.5">Real registrado</div>
-        </div>
-        <div className={`rounded-xl p-3 text-center ${vari>=0?'bg-green-50':'bg-red-50'}`}>
-          <div className={`text-2xl font-extrabold ${vari>=0?'text-green-700':'text-red-600'}`}>{vari>=0?'+':''}{vari.toFixed(2)}%</div>
-          <div className="text-xs text-gray-500 mt-0.5">Variação</div>
-        </div>
-      </div>
-
-      <div className="bg-white border rounded-xl p-3 overflow-x-auto">
-        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Curva S — Avanço Físico Geral</p>
-        <svg viewBox={`0 0 ${CW} ${CH}`} style={{width:'100%',maxWidth:CW,height:'auto'}}>
-          {[0,25,50,75,100].map(p=>(
-            <g key={p}>
-              <line x1="36" x2={CW-16} y1={py(p)} y2={py(p)} stroke="#E5E7EB" strokeWidth="1"/>
-              <text x="32" y={py(p)+4} textAnchor="end" fontSize="9" fill="#9CA3AF">{p}%</text>
-            </g>
-          ))}
-          {mesMarks.map(m=>(
-            <g key={m.l}>
-              <line x1={m.x} x2={m.x} y1={py(0)} y2={py(0)+6} stroke="#D1D5DB" strokeWidth="1"/>
-              <text x={m.x} y={py(0)+16} textAnchor="middle" fontSize="9" fill="#6B7280">{m.l}</text>
-            </g>
-          ))}
-          {planPath&&<path d={planPath} fill="none" stroke="#2563EB" strokeWidth="2"/>}
-          {realPath&&<path d={realPath} fill="none" stroke="#16A34A" strokeWidth="2.5"/>}
-          {realPts.map(pt=><circle key={pt.date} cx={px(pt.date)} cy={py(pt.pct)} r="3.5" fill="#16A34A"/>)}
-          <line x1={todayX} x2={todayX} y1={18} y2={py(0)} stroke="#F97316" strokeWidth="1.5" strokeDasharray="4,3"/>
-          <text x={todayX} y={14} textAnchor="middle" fontSize="8" fill="#F97316">hoje</text>
-          <rect x="38" y="8" width="12" height="3" fill="#2563EB" rx="1.5"/>
-          <text x="53" y="12" fontSize="8" fill="#2563EB">Planejado</text>
-          <rect x="105" y="8" width="12" height="3" fill="#16A34A" rx="1.5"/>
-          <text x="120" y="12" fontSize="8" fill="#16A34A">Real</text>
-        </svg>
-      </div>
-
-      {canEdit&&(
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
-          <div className="flex items-center justify-between flex-wrap gap-3">
-            <div>
-              <p className="text-sm font-bold text-amber-800">📋 Avanço hoje — {today.split('-').reverse().join('/')}</p>
-              <p className="text-xs text-gray-500 mt-0.5">Auto-elementos: {elPct.toFixed(2)}%</p>
-              {msg&&<p className="text-sm text-green-700 font-medium mt-1">{msg}</p>}
-            </div>
-            <button onClick={abrirModal} disabled={!db}
-              className="px-5 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 disabled:opacity-60 text-sm">
-              ✏️ Registrar avanço
-            </button>
-          </div>
-        </div>
-      )}
-
-      {modalOpen&&(
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}
-          onClick={()=>setModalOpen(false)}>
-          <div style={{background:'white',borderRadius:'20px 20px 0 0',padding:'28px 24px',width:'100%',maxWidth:480,boxShadow:'0 -4px 32px rgba(0,0,0,0.18)'}}
-            onClick={e=>e.stopPropagation()}>
-            <p style={{fontWeight:700,fontSize:15,color:'#92400E',marginBottom:4}}>📋 Registrar avanço</p>
-            <p style={{fontSize:12,color:'#6B7280',marginBottom:20}}>{today.split('-').reverse().join('/')} — Auto-elementos: {elPct.toFixed(2)}%</p>
-            <input
-              autoFocus
-              type="text"
-              inputMode="decimal"
-              pattern="[0-9]*[.,]?[0-9]*"
-              value={modalVal}
-              onChange={e=>setModalVal(e.target.value.replace(/[^0-9.,]/g,''))}
-              onKeyDown={e=>e.key==='Enter'&&salvar()}
-              placeholder="Ex: 75.50"
-              style={{width:'100%',fontSize:36,fontWeight:700,textAlign:'center',border:'2px solid #F59E0B',borderRadius:12,padding:'14px 8px',boxSizing:'border-box',outline:'none',color:'#1F2937'}}
-            />
-            <p style={{fontSize:11,color:'#9CA3AF',textAlign:'center',marginTop:6}}>Digite o % realizado (0 a 100)</p>
-            <div style={{display:'flex',gap:12,marginTop:20}}>
-              <button onClick={()=>setModalOpen(false)}
-                style={{flex:1,padding:'12px',border:'1px solid #D1D5DB',borderRadius:12,background:'white',fontWeight:600,fontSize:14,color:'#374151',cursor:'pointer'}}>
-                Cancelar
-              </button>
-              <button onClick={salvar} disabled={saving}
-                style={{flex:2,padding:'12px',background:saving?'#9CA3AF':'#D97706',color:'white',borderRadius:12,fontWeight:700,fontSize:16,border:'none',cursor:saving?'not-allowed':'pointer'}}>
-                {saving?'Salvando…':'Confirmar ✓'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className="bg-white border rounded-xl overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2 border-b">
-          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Histórico de Registros</p>
-        </div>
-        {!realPts.length?(
-          <p className="text-center text-gray-400 py-8 text-sm">Nenhum registro ainda.</p>
-        ):(
-          <div className="divide-y max-h-72 overflow-y-auto">
-            {[...realPts].reverse().map(pt=>{
-              const plan=planned[dIdx(pt.date)]||0;
-              const v=pt.pct-plan;
-              return(
-                <div key={pt.date} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 text-sm">
-                  <span className="font-mono text-gray-600">{pt.date.split('-').reverse().join('/')}</span>
-                  <div className="flex gap-4 items-center">
-                    <span className="text-blue-600">Plan: {plan.toFixed(2)}%</span>
-                    <span className="font-bold text-green-700">Real: {pt.pct.toFixed(2)}%</span>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v>=0?'bg-green-100 text-green-700':'bg-red-100 text-red-600'}`}>{v>=0?'+':''}{v.toFixed(2)}%</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -1125,7 +931,7 @@ function PainelProjeto({project,role='viewer',obraCode,onBack,onUpdate}){
 
   const pct=stats.pct;
   const barClr=pct===100?'#22C55E':pct>60?'#3B82F6':pct>30?'#F97316':'#FBBF24';
-  const tabs=[{id:'3d',l:'🏗️ 3D'},{id:'telhas',l:'🧱 Telhas'},{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'hist',l:'Histórico'},{id:'curva',l:'📈 Curva S'}];
+  const tabs=[{id:'3d',l:'🏗️ 3D'},{id:'telhas',l:'🧱 Telhas'},{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'hist',l:'Histórico'}];
   const roleBadge={viewer:{l:'👁️ Visitante',c:'bg-gray-100 text-gray-600'},apontador:{l:'✏️ Apontador',c:'bg-amber-100 text-amber-700'},admin:{l:'⚙️ Gestor',c:'bg-blue-100 text-blue-700'}};
   const badge=roleBadge[role];
 
@@ -1217,7 +1023,6 @@ function PainelProjeto({project,role='viewer',obraCode,onBack,onUpdate}){
           {tab==='lateral'&&<VistaLateral project={project} selectedId={selId} onSelect={setSelId}/>}
           {tab==='planta'&&<Planta2D project={project} selectedId={selId} onSelect={setSelId}/>}
           {tab==='hist'&&<Historico elements={project.elements}/>}
-          {tab==='curva'&&<TabCurvaS project={project} obraCode={obraCode} canEdit={canEdit}/>}
         </div>
       </div>
 
