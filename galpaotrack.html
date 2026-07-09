@@ -412,17 +412,17 @@ function Planta2D({project,selectedId,onSelect}){
 }
 
 /* ═══════════════ VISTA 3D — GALPÃO REALISTA (TELHAS) ═══════════════ */
-function Vista3D({project}){
+function Vista3D({project,h=440,bare=false}){
   const mountRef=useRef(null);
   const threeRef=useRef(null);
   const cfg=project.config||{};
-  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}`;
+  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}|${bare?1:0}`;
 
   const buildScene=useCallback(()=>{
     const container=mountRef.current;
     if(!container||!window.THREE)return;
     const{THREE}=window;
-    const W=container.clientWidth||600,H=440;
+    const W=container.clientWidth||600,H=bare?(container.clientHeight||440):h;
     if(threeRef.current){threeRef.current.cleanup&&threeRef.current.cleanup();threeRef.current.renderer.dispose();if(container.contains(threeRef.current.renderer.domElement))container.removeChild(threeRef.current.renderer.domElement);}
     const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
     renderer.setSize(W,H);renderer.setPixelRatio(window.devicePixelRatio);
@@ -434,6 +434,10 @@ function Vista3D({project}){
     const dl2=new THREE.DirectionalLight(0xffffff,0.22);dl2.position.set(-1.2,1,-1);scene.add(dl2);
     const controls=new THREE.OrbitControls(camera,renderer.domElement);
     controls.enableDamping=false;controls.minDistance=4;controls.maxDistance=600;controls.maxPolarAngle=Math.PI/2+0.04;
+    // (b) PAN habilitado: botão direito/2 dedos movem; scroll/pinça = zoom; esquerdo/1 dedo = girar
+    controls.enablePan=true;controls.screenSpacePanning=true;controls.panSpeed=1.0;controls.zoomSpeed=1.1;
+    controls.mouseButtons={LEFT:THREE.MOUSE.ROTATE,MIDDLE:THREE.MOUSE.DOLLY,RIGHT:THREE.MOUSE.PAN};
+    controls.touches={ONE:THREE.TOUCH.ROTATE,TWO:THREE.TOUCH.DOLLY_PAN};
 
     // Dimensões (reaproveita config; vãos de telha = eixos-1)
     const eixos=+cfg.eixos||2, NB=Math.max(1,eixos-1);
@@ -567,23 +571,33 @@ function Vista3D({project}){
     applyTelhas(project.telhas);          // já renderiza ao final
     controls.addEventListener('change',render);  // render sob demanda (sem loop contínuo)
     render();
-    const onResize=()=>{const nW=container.clientWidth;camera.aspect=nW/H;camera.updateProjectionMatrix();renderer.setSize(nW,H);render();};
+    const onResize=()=>{const nW=container.clientWidth||600,nH=bare?(container.clientHeight||H):H;camera.aspect=nW/nH;camera.updateProjectionMatrix();renderer.setSize(nW,nH);render();};
     window.addEventListener('resize',onResize);
-    threeRef.current={renderer,scene,camera,controls,applyTelhas,cleanup:()=>{controls.removeEventListener('change',render);window.removeEventListener('resize',onResize);clearNets();controls.dispose();}};
+    let ro=null;                                          // acompanha resize do container (inclusive dentro de iframe)
+    if(window.ResizeObserver){ro=new ResizeObserver(()=>onResize());ro.observe(container);}
+    threeRef.current={renderer,scene,camera,controls,applyTelhas,cleanup:()=>{controls.removeEventListener('change',render);window.removeEventListener('resize',onResize);ro&&ro.disconnect();clearNets();controls.dispose();}};
   },[sig]);
 
   useEffect(()=>{buildScene();return()=>{if(threeRef.current&&threeRef.current.cleanup)threeRef.current.cleanup();};},[buildScene]);
   useEffect(()=>{if(threeRef.current&&threeRef.current.applyTelhas)threeRef.current.applyTelhas(project.telhas);},[project.telhas]);
 
+  if(bare)return(
+    <div style={{position:'relative',width:'100%',height:'100%'}}>
+      <div ref={mountRef} style={{width:'100%',height:'100%',overflow:'hidden',background:'#EAF2FB'}}/>
+      <div style={{position:'absolute',left:8,bottom:6,fontSize:11,color:'#475569',background:'rgba(255,255,255,.72)',padding:'2px 7px',borderRadius:6,pointerEvents:'none',maxWidth:'92%'}}>
+        1 dedo/arraste: girar · 2 dedos/scroll: zoom · 2 dedos ou botão direito: mover (pan)
+      </div>
+    </div>
+  );
   return(
     <div>
-      <div ref={mountRef} style={{width:'100%',borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0',background:'#EAF2FB'}}/>
+      <div ref={mountRef} style={{width:'100%',height:h,borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0',background:'#EAF2FB'}}/>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 justify-center text-xs text-gray-500">
         <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_TELHA_AZUL,borderRadius:2,display:'inline-block'}}/>Telha instalada · RAL 5003</span>
         <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_METALICA,borderRadius:2,display:'inline-block'}}/>Metálica / pendente</span>
         <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_REDE,borderRadius:2,display:'inline-block'}}/>Rede instalada</span>
       </div>
-      <div className="mt-1 text-xs text-gray-400 text-center">Arraste para girar · Scroll para zoom · Clique direito para mover</div>
+      <div className="mt-1 text-xs text-gray-400 text-center">1 dedo/arraste: girar · 2 dedos/scroll: zoom · 2 dedos ou botão direito: mover (pan)</div>
     </div>
   );
 }
@@ -1273,7 +1287,15 @@ function LoginScreen({onLogin,onNew}){
 }
 
 /* ═══════════════ APP ROOT ═══════════════ */
+/* ═══════════════ VISUALIZADOR 3D EMBUTIDO (iframe do painel) ═══════════════ */
+function Viewer3D({project}){
+  return <div style={{width:'100%',height:'100vh',overflow:'hidden'}}><Vista3D project={project} bare/></div>;
+}
+
 function App(){
+  const q3d=new URLSearchParams(location.search);
+  const only3D=q3d.get('view')==='3d';                       // modo iframe só-3D
+  const obra3D=(q3d.get('obra')||'').trim().toUpperCase();
   const[view,setView]=useState('login');       // login | project | loading
   const[obraCode,setObraCode]=useState('');
   const[project,setProject]=useState(null);
@@ -1290,6 +1312,14 @@ function App(){
     });
     return()=>ref.off('value');
   },[obraCode,view]);
+
+  // Modo visualizador 3D embutido (?obra=CODE&view=3d) — só leitura, sem login
+  useEffect(()=>{
+    if(!only3D||!db||!obra3D)return;
+    const ref=db.ref(`/obras/${obra3D}`);
+    ref.on('value',snap=>{const raw=snap.val();if(raw)setProject(normProject(raw));});
+    return()=>ref.off('value');
+  },[]);
 
   const handleLogin=(code,userRole,data)=>{
     setObraCode(code);
@@ -1309,6 +1339,12 @@ function App(){
     setShowNew(false);
     handleLogin(p.code,'admin',obraObj);
   };
+
+  if(only3D){
+    if(!FIREBASE_OK||!obra3D)return<div style={{padding:16,fontFamily:'sans-serif',color:'#64748B'}}>3D indisponível (obra não informada).</div>;
+    if(!project)return<div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'sans-serif',color:'#64748B'}}>Carregando 3D…</div>;
+    return<Viewer3D project={project}/>;
+  }
 
   if(view==='project'&&project){
     return<PainelProjeto project={project} role={role} obraCode={obraCode} onBack={()=>setView('login')} onUpdate={updateProject}/>;

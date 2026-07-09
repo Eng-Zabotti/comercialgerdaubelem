@@ -37,6 +37,13 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:800;color:var(--kc,var(--yellow));line-height:1}
 .kpi-sub{font-size:.65rem;color:var(--dim);margin-top:3px}
 .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--yellow);border-left:3px solid var(--yellow);padding-left:9px;margin-bottom:12px;margin-top:24px}
+.sec-title.sec-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
+.sec-title .sec-tgl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid var(--yellow);border-radius:4px;font-size:.9rem;line-height:1;flex-shrink:0}
+.sec-title .sec-link{margin-left:auto;font-size:.7rem;color:#94a3b8;text-transform:none;letter-spacing:0;font-weight:600;text-decoration:none}
+.sec-title .sec-link:hover{color:#e2e8f0}
+.g3d-wrap{margin-bottom:22px;border:1px solid rgba(148,163,184,.22);border-radius:12px;overflow:hidden;background:#0b1220}
+.g3d-frame{display:block;width:100%;height:440px;border:0}
+@media(max-width:768px){.g3d-frame{height:320px}}
 .vaos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
 .vao-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
 .vao-card:hover{transform:translateY(-2px);border-color:rgba(245,184,0,.4)}
@@ -163,9 +170,16 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 
   <div id="tab-dashboard" class="tab-content active">
     <div class="kpi-strip" id="kpi-strip"></div>
-    <div class="sec-title">Recuperação Estrutural — 16 Vãos</div>
+
+    <div class="sec-title sec-toggle" onclick="toggleSec(this,'g3d-wrap')"><span class="sec-tgl">−</span>Vista 3D do Galpão — Telhas<a href="./galpaotrack.html" target="_blank" class="sec-link" onclick="event.stopPropagation()">abrir em tela cheia ↗</a></div>
+    <div class="g3d-wrap" id="g3d-wrap">
+      <iframe class="g3d-frame" src="./galpaotrack.html?obra=BELEM2025&view=3d" title="Vista 3D do Galpão" loading="lazy"></iframe>
+    </div>
+
+    <div class="sec-title sec-toggle" onclick="toggleSec(this,'vaos-grid')"><span class="sec-tgl">−</span>Recuperação Estrutural — 16 Vãos</div>
     <div class="vaos-grid" id="vaos-grid"></div>
-    <div class="sec-title">Outros Serviços</div>
+
+    <div class="sec-title sec-toggle" onclick="toggleSec(this,'phases-grid')"><span class="sec-tgl">−</span>Outros Serviços</div>
     <div class="phases-grid" id="phases-grid"></div>
   </div>
 
@@ -522,6 +536,18 @@ function overallGeral(){
   const vSum=VAOS.reduce((a,v)=>a+vaoOverall(v.id),0)/VAOS.length;
   const pSum=PHASES.reduce((a,p)=>a+state.phases[p.id],0)/PHASES.length;
   return Math.round(vSum*0.65+pSum*0.35);
+}
+
+// ============================
+// SEÇÕES RECOLHÍVEIS (+/−)
+// ============================
+function toggleSec(el,id){
+  const g=document.getElementById(id);
+  if(!g)return;
+  const hidden=g.style.display==='none';
+  g.style.display=hidden?'':'none';
+  const t=el.querySelector('.sec-tgl');
+  if(t)t.textContent=hidden?'−':'+';
 }
 
 // ============================
