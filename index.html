@@ -1,1286 +1,1523 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Avanço de Obra — Gerdau Belém</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GalpãoTrack</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/build/three.min.js"></script>
+<script src="https://unpkg.com/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
-:root{--yellow:#f5b800;--dark:#0d1520;--mid:#111e2e;--panel:#0f2840;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--teal:#14b8a6;--purple:#8b5cf6;--text:#e2e8f0;--dim:#64748b;--border:rgba(245,184,0,0.15)}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:var(--dark);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden}
-header{background:linear-gradient(135deg,#0a1628,#0d1f35);border-bottom:2px solid var(--yellow);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.6)}
-.hdr-left{display:flex;align-items:center;gap:14px}
-.proj-title h1{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.35rem;color:var(--yellow);letter-spacing:.04em;line-height:1.1}
-.proj-title p{font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
-.hdr-right{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.live-badge{display:flex;align-items:center;gap:6px;background:rgba(34,197,94,.1);border:1px solid rgba(34,197,94,.3);border-radius:20px;padding:4px 12px;font-size:.7rem;font-weight:600;color:var(--green);letter-spacing:.08em;text-transform:uppercase}
-.live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 1.6s ease-in-out infinite}
-@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.4;transform:scale(1.4)}}
-.upd-txt{font-size:.7rem;color:var(--dim)}
-.upd-txt span{color:var(--yellow);font-weight:600}
-.btn-hdr{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;padding:6px 14px;border:1px solid var(--yellow);background:rgba(245,184,0,.08);color:var(--yellow);border-radius:6px;cursor:pointer;transition:all .2s}
-.btn-hdr:hover{background:var(--yellow);color:var(--dark)}
-.btn-hdr.sec{border-color:rgba(255,255,255,.15);color:var(--dim);background:transparent}
-.btn-hdr.sec:hover{border-color:var(--text);color:var(--text)}
-main{padding:20px 24px;max-width:1500px;margin:0 auto}
-.tabs{display:flex;gap:4px;margin-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
-.tab-btn{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;padding:8px 18px;background:none;border:none;color:var(--dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .2s;margin-bottom:-1px}
-.tab-btn.active{color:var(--yellow);border-bottom-color:var(--yellow)}
-.tab-btn:hover:not(.active){color:var(--text)}
-.tab-content{display:none}.tab-content.active{display:block}
-.kpi-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:22px}
-.kpi{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden;transition:transform .2s}
-.kpi:hover{transform:translateY(-2px)}
-.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--yellow))}
-.kpi-lbl{font-size:.65rem;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px}
-.kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:800;color:var(--kc,var(--yellow));line-height:1}
-.kpi-sub{font-size:.65rem;color:var(--dim);margin-top:3px}
-.sec-title{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--yellow);border-left:3px solid var(--yellow);padding-left:9px;margin-bottom:12px;margin-top:24px}
-.vaos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
-.vao-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
-.vao-card:hover{transform:translateY(-2px);border-color:rgba(245,184,0,.4)}
-.vao-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--vc,#374151)}
-.vao-hdr{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px}
-.vao-num{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:.75rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em}
-.vao-pct{font-family:'Barlow Condensed',sans-serif;font-size:1.9rem;font-weight:800;color:var(--vc,var(--text));line-height:1}
-.vao-svc-row{display:flex;gap:5px;margin-top:7px}
-.vao-svc{font-size:.64rem;padding:2px 7px;border-radius:4px;font-weight:600;background:rgba(255,255,255,.05);flex:1;text-align:center;color:var(--dim)}
-.vao-bar{margin-top:8px;height:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
-.vao-bar-fill{height:100%;border-radius:3px;transition:width .8s}
-.phases-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:22px}
-.ph-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:12px 14px;position:relative;overflow:hidden}
-.ph-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--pc,var(--yellow))}
-.ph-lbl{font-size:.7rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
-.ph-pct{font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:800;color:var(--pc,var(--yellow))}
-.ph-dates{font-size:.65rem;color:var(--dim);margin-top:3px}
-.ph-bar{margin-top:8px;height:5px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
-.ph-bar-fill{height:100%;border-radius:3px}
-.map-wrap{background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:16px;overflow-x:auto}
-.legend{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
-.leg{display:flex;align-items:center;gap:6px;font-size:.72rem;color:var(--dim)}
-.leg-sw{width:14px;height:14px;border-radius:3px;border:1px solid}
-.map-grid{width:100%;border-collapse:collapse;min-width:480px}
-.map-grid th,.map-grid td{padding:8px 10px;border:1px solid rgba(255,255,255,.06);text-align:center;font-size:.8rem}
-.map-grid th{background:rgba(255,255,255,.04);color:var(--dim);font-weight:700;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase}
-.map-cell{border-radius:6px;padding:5px 12px;display:inline-block;min-width:65px;font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700}
-.gantt-wrap{background:var(--mid);border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto}
-.task-tbl-wrap{overflow-x:auto}
-.task-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
-.task-tbl th{background:rgba(245,184,0,.08);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
-.task-tbl td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
-.task-tbl tr:hover td{background:rgba(255,255,255,.02)}
-.task-tbl .grp td{background:rgba(245,184,0,.04);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.82rem;letter-spacing:.05em}
-.pct-bar{width:90px;height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
-.pct-fill{height:100%;border-radius:4px}
-.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.bd-done{background:rgba(34,197,94,.15);color:#22c55e}
-.bd-prog{background:rgba(59,130,246,.15);color:#3b82f6}
-.bd-pend{background:rgba(100,116,139,.12);color:#64748b}
-.bd-late{background:rgba(239,68,68,.15);color:#ef4444}
-.ind-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:18px}
-.ind-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:14px;position:relative;overflow:hidden}
-.ind-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ic,var(--yellow))}
-.ind-form{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:16px}
-.ind-form-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:12px}
-.form-group{margin-bottom:10px}
-.form-group label{display:block;font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px}
-.form-group input,.form-group select,.form-group textarea{width:100%;background:#0a1620;border:1px solid rgba(255,255,255,.12);border-radius:6px;padding:8px 10px;color:var(--text);font-size:.85rem;font-family:'Barlow',sans-serif;outline:none}
-.form-group input:focus,.form-group select:focus{border-color:rgba(245,184,0,.4)}
-.form-group select option{background:#0a1620}
-.btn-save{width:100%;padding:11px;background:var(--yellow);color:var(--dark);border:none;border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:.95rem;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;transition:opacity .2s}
-.btn-save:hover{opacity:.9}
-#edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none}
-#edit-panel{position:fixed;top:0;right:0;bottom:0;width:320px;background:var(--panel);border-left:1px solid var(--border);z-index:201;padding:24px;overflow-y:auto;transform:translateX(100%);transition:transform .3s}
-#edit-panel.open{transform:translateX(0)}
-.panel-close{position:absolute;top:14px;right:14px;background:none;border:1px solid rgba(255,255,255,.1);color:var(--text);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:.9rem;display:flex;align-items:center;justify-content:center}
-.panel-title{font-family:'Barlow Condensed',sans-serif;font-size:1.1rem;font-weight:700;color:var(--yellow);margin-bottom:18px;padding-right:36px}
-.divider{border:none;border-top:1px solid var(--border);margin:14px 0}
-.p-lbl{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin-bottom:8px}
-.curvas-toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
-.btn-cs{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.05em;text-transform:uppercase;padding:6px 14px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.04);color:var(--text);border-radius:6px;cursor:pointer;transition:all .2s}
-.btn-cs:hover{border-color:var(--yellow);color:var(--yellow)}
-.btn-cs.primary{border-color:var(--yellow);background:rgba(245,184,0,.08);color:var(--yellow)}
-.btn-cs.danger{border-color:rgba(239,68,68,.3);color:#ef4444;background:rgba(239,68,68,.06)}
-.cs-canvas-wrap{background:var(--mid);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:16px}
-#cs-canvas{display:block;max-width:100%;border-radius:4px}
-.cs-leg-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px}
-.cs-leg{display:flex;align-items:center;gap:7px;font-size:.75rem;color:var(--dim)}
-.cs-leg-line{width:28px;height:3px;border-radius:2px}
-.cs-tbl-wrap{overflow-x:auto}
-.cs-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
-.cs-tbl th{background:rgba(245,184,0,.08);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;padding:9px 12px;border-bottom:1px solid var(--border);text-align:center}
-.cs-tbl td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);text-align:center;vertical-align:middle}
-.cs-tbl tr:hover td{background:rgba(255,255,255,.02)}
-.cs-inp{background:transparent;border:1px solid transparent;border-radius:4px;padding:4px 8px;color:var(--text);font-size:.82rem;text-align:center;font-family:'Barlow',sans-serif;transition:border-color .2s;width:100px}
-.cs-inp:focus{outline:none;border-color:rgba(245,184,0,.4);background:rgba(0,0,0,.25)}
-.cs-inp-d{width:118px}
-.cs-inp-sm{width:70px}
-.btn-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:.95rem;padding:2px 6px;border-radius:3px;transition:color .2s;line-height:1}
-.btn-del:hover{color:var(--red)}
-.today-tag{font-size:.64rem;background:rgba(245,184,0,.15);color:var(--yellow);border-radius:3px;padding:1px 5px;margin-left:4px;vertical-align:middle}
-.btn-task-toggle{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.15);color:var(--dim);cursor:pointer;font-size:.72rem;font-weight:700;font-family:'Barlow Condensed',sans-serif;letter-spacing:.03em;padding:6px 10px;border-radius:6px;line-height:1;transition:all .2s;white-space:nowrap}
-.btn-task-toggle .tt-plus{font-size:.95rem;font-weight:800}
-.btn-task-toggle.has-tasks{border-color:rgba(245,184,0,.55);background:rgba(245,184,0,.12);color:var(--yellow)}
-.btn-task-toggle:hover{background:rgba(245,184,0,.22);color:var(--yellow);border-color:var(--yellow)}
-.curva-task-row td{background:rgba(255,255,255,.015);padding:10px 14px!important;text-align:left!important}
-.day-tasks-wrap{display:flex;flex-wrap:wrap;gap:7px}
-.day-task-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.04);border:1px solid;border-radius:6px;padding:5px 11px;font-size:.76rem}
-.day-task-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.day-task-lbl{color:var(--text)}
-.day-task-pct{font-weight:700;margin-left:2px}
-@media(max-width:768px){.vaos-grid{grid-template-columns:repeat(2,1fr)}.phases-grid{grid-template-columns:1fr 1fr}}
+*{box-sizing:border-box;}
+body{margin:0;font-family:'Segoe UI',system-ui,sans-serif;background:#F3F4F6;}
+canvas{display:block;}
+.ldot{width:13px;height:13px;border-radius:50%;display:inline-block;flex-shrink:0;}
+.tab-on{border-bottom:3px solid #2563EB;color:#2563EB;font-weight:700;}
+.tab-off{border-bottom:3px solid transparent;color:#6B7280;}
+.addr{font-family:monospace;font-weight:700;letter-spacing:.5px;}
+::-webkit-scrollbar{width:5px}::-webkit-scrollbar-thumb{background:#9CA3AF;border-radius:3px}
 </style>
 </head>
 <body>
-<header>
-  <div class="hdr-left">
-    <div class="proj-title">
-      <h1>GERDAU BELÉM</h1>
-      <p>Substituição de Telhas e Reforma do Telhado · Obra 258</p>
-    </div>
-  </div>
-  <div class="hdr-right">
-    <div class="live-badge"><span class="live-dot"></span>Monitoramento</div>
-    <span class="upd-txt">Atualizado: <span id="last-upd">—</span></span>
-    <button class="btn-hdr" onclick="openEdit()">✏ Editar</button>
-    <button class="btn-hdr sec" onclick="exportData()">⬇ Export</button>
-    <button class="btn-hdr sec" onclick="document.getElementById('import-file').click()">⬆ Import</button>
-  </div>
-</header>
-<input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(event)">
-
-<main>
-  <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
-    <button class="tab-btn" onclick="showTab('indicadores')">Indicadores</button>
-    <button class="tab-btn" onclick="showTab('mapa')">Mapa do Galpão</button>
-    <button class="tab-btn" onclick="showTab('cronograma')">Cronograma</button>
-    <button class="tab-btn" onclick="showTab('tarefas')">Tarefas</button>
-    <button class="tab-btn" onclick="showTab('curvas')">Curva S</button>
-    <a href="./galpaotrack.html" target="_blank" class="tab-btn" style="text-decoration:none;color:var(--amber);border-bottom-color:transparent" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--amber)'">🏭 GalpãoTrack ↗</a>
-  </div>
-
-  <div id="tab-dashboard" class="tab-content active">
-    <div class="kpi-strip" id="kpi-strip"></div>
-    <div class="sec-title">Recuperação Estrutural — 16 Vãos</div>
-    <div class="vaos-grid" id="vaos-grid"></div>
-    <div class="sec-title">Outros Serviços</div>
-    <div class="phases-grid" id="phases-grid"></div>
-  </div>
-
-  <div id="tab-indicadores" class="tab-content">
-    <div id="ind-content"></div>
-  </div>
-
-  <div id="tab-mapa" class="tab-content">
-    <div class="legend" id="mapa-legend">
-      <div class="leg"><div class="leg-sw" style="background:rgba(239,68,68,.2);border-color:#ef4444"></div>Não iniciado</div>
-      <div class="leg"><div class="leg-sw" style="background:rgba(245,158,11,.2);border-color:#f59e0b"></div>Em execução (&lt;60%)</div>
-      <div class="leg"><div class="leg-sw" style="background:rgba(59,130,246,.2);border-color:#3b82f6"></div>Em execução (60–99%)</div>
-      <div class="leg"><div class="leg-sw" style="background:rgba(34,197,94,.2);border-color:#22c55e"></div>Concluído (100%)</div>
-    </div>
-    <div class="map-wrap"><div id="mapa-content"></div></div>
-  </div>
-
-  <div id="tab-cronograma" class="tab-content">
-    <div id="gantt-content"></div>
-  </div>
-
-  <div id="tab-tarefas" class="tab-content">
-    <div class="task-tbl-wrap">
-      <table class="task-tbl">
-        <thead>
-          <tr>
-            <th style="width:38px">#</th>
-            <th>Vão / Serviço</th>
-            <th>Início Plan.</th>
-            <th>Fim Plan.</th>
-            <th style="width:100px">% Tesoura</th>
-            <th style="width:100px">% Pilar</th>
-            <th style="width:100px">% Geral</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody id="task-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-
-  <div id="tab-curvas" class="tab-content">
-    <div class="curvas-toolbar">
-      <button class="btn-cs primary" onclick="addCurvaRow()">+ Adicionar Linha</button>
-      <button class="btn-cs" onclick="clearRealizado()">Limpar Realizado</button>
-      <button class="btn-cs" onclick="exportCurvaCSV()">⬇ Export CSV</button>
-      <button class="btn-cs" onclick="document.getElementById('curva-import').click()">⬆ Import CSV</button>
-      <button class="btn-cs danger" onclick="resetCurva()">↺ Resetar Padrão</button>
-      <span style="font-size:.75rem;color:var(--dim);margin-left:auto">Preencha <b style="color:#22c55e">Real. Dia</b> — Acumulado e Desvios calculados automaticamente</span>
-    </div>
-    <input type="file" id="curva-import" accept=".csv" style="display:none" onchange="importCurvaCSV(event)">
-    <div class="cs-canvas-wrap">
-      <canvas id="cs-canvas" height="320"></canvas>
-      <div class="cs-leg-row">
-        <div class="cs-leg"><div class="cs-leg-line" style="background:#3b82f6"></div>Planejado</div>
-        <div class="cs-leg"><div class="cs-leg-line" style="background:#22c55e"></div>Realizado</div>
-        <div class="cs-leg"><div class="cs-leg-line" style="background:#f5b800;height:2px;border-top:2px dashed #f5b800;background:none"></div>Hoje</div>
-      </div>
-    </div>
-    <div class="cs-tbl-wrap">
-      <table class="cs-tbl">
-        <thead>
-          <tr>
-            <th style="width:118px">Tarefas do Dia</th>
-            <th style="width:40px">#</th>
-            <th>Data</th>
-            <th style="color:#3b82f6">Plan. Dia</th>
-            <th style="color:#3b82f6">Acum. Plan</th>
-            <th style="color:#22c55e">Real. Dia</th>
-            <th style="color:#22c55e">Acum. Real</th>
-            <th>Desv. Dia</th>
-            <th>Desv. Acum</th>
-            <th style="width:32px"></th>
-          </tr>
-        </thead>
-        <tbody id="curva-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</main>
-
-<!-- EDIT PANEL -->
-<div id="edit-overlay" onclick="closeEdit()"></div>
-<div id="edit-panel">
-  <button class="panel-close" onclick="closeEdit()">✕</button>
-  <div class="panel-title">✏ Atualizar Avanço</div>
-
-  <div class="p-lbl">Vão</div>
-  <div class="form-group">
-    <select id="ep-vao" onchange="syncEditPanel()"></select>
-  </div>
-
-  <div class="form-group">
-    <label>% Tesoura — <span id="ep-tesoura-val">0</span>%</label>
-    <input type="range" id="ep-tesoura" min="0" max="100" step="1" value="0" oninput="document.getElementById('ep-tesoura-val').textContent=this.value">
-    <input type="number" id="ep-tesoura-n" min="0" max="100" style="margin-top:5px" oninput="document.getElementById('ep-tesoura').value=this.value;document.getElementById('ep-tesoura-val').textContent=this.value">
-  </div>
-  <div class="form-group">
-    <label>% Pilar — <span id="ep-pilar-val">0</span>%</label>
-    <input type="range" id="ep-pilar" min="0" max="100" step="1" value="0" oninput="document.getElementById('ep-pilar-val').textContent=this.value">
-    <input type="number" id="ep-pilar-n" min="0" max="100" style="margin-top:5px" oninput="document.getElementById('ep-pilar').value=this.value;document.getElementById('ep-pilar-val').textContent=this.value">
-  </div>
-
-  <div class="divider"></div>
-  <div class="p-lbl">Outros Serviços</div>
-
-  <div class="form-group">
-    <label>Terças Perimetrais (%)</label>
-    <input type="number" id="ep-tercas" min="0" max="100">
-  </div>
-  <div class="form-group">
-    <label>Substituição de Telhas (%)</label>
-    <input type="number" id="ep-telhas" min="0" max="100">
-  </div>
-  <div class="form-group">
-    <label>Linha de Vida Definitiva (%)</label>
-    <input type="number" id="ep-linhavida" min="0" max="100">
-  </div>
-  <div class="form-group">
-    <label>SPDA (%)</label>
-    <input type="number" id="ep-spda" min="0" max="100">
-  </div>
-  <div class="form-group">
-    <label>Entrega / Desmobilização (%)</label>
-    <input type="number" id="ep-entrega" min="0" max="100">
-  </div>
-
-  <div class="divider"></div>
-  <button class="btn-save" onclick="saveEdit()">💾 Salvar</button>
-  <button style="width:100%;padding:9px;background:transparent;color:var(--dim);border:1px solid rgba(255,255,255,.1);border-radius:8px;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;margin-top:8px" onclick="closeEdit()">Cancelar</button>
-</div>
-
-<script type="module">
-// Sincronização compartilhada (Firebase Realtime Database) — todos os usuários
-// leem/escrevem o mesmo estado, em vez de cada navegador ter sua cópia isolada.
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js";
-import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.13.0/firebase-database.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyAIeb3v79NbksPD3T1zI4XSzHr5qqNTAWc",
-  authDomain: "gerdau-belem.firebaseapp.com",
-  databaseURL: "https://gerdau-belem-default-rtdb.firebaseio.com",
-  projectId: "gerdau-belem",
-  storageBucket: "gerdau-belem.firebasestorage.app",
-  messagingSenderId: "547624741013",
-  appId: "1:547624741013:web:ff218a59bc68aa1151939c"
-};
-const fbApp = initializeApp(firebaseConfig);
-const fbDb = getDatabase(fbApp);
-const fbStateRef = ref(fbDb, 'state');
-window.firebaseSave = (data) => set(fbStateRef, data).catch(e=>console.error('Firebase save falhou:', e));
-let fbFirst = true;
-onValue(fbStateRef, (snap) => {
-  if (window.onFirebaseUpdate) window.onFirebaseUpdate(snap.val(), fbFirst);
-  fbFirst = false;
-}, (err) => console.error('Firebase leitura falhou:', err));
-</script>
-
+<div id="root"></div>
 <script>
-// ============================
-// DATA
-// ============================
-const VAOS = [
-  {id:'v1',  num:1,  start:'2026-05-19',end:'2026-06-05', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-02'}, pilar:{pct:100,start:'2026-06-02',end:'2026-06-05'}},
-  {id:'v2',  num:2,  start:'2026-05-19',end:'2026-06-05', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-02'}, pilar:{pct:83, start:'2026-06-02',end:'2026-06-05'}},
-  {id:'v3',  num:3,  start:'2026-05-19',end:'2026-06-16', tesoura:{pct:100,start:'2026-05-19',end:'2026-06-16'}, pilar:{pct:100,start:'2026-06-09',end:'2026-06-16'}},
-  {id:'v4',  num:4,  start:'2026-05-19',end:'2026-06-17', tesoura:{pct:83, start:'2026-05-19',end:'2026-06-16'}, pilar:{pct:80, start:'2026-06-16',end:'2026-06-17'}},
-  {id:'v5',  num:5,  start:'2026-06-15',end:'2026-06-17', tesoura:{pct:100,start:'2026-06-15',end:'2026-06-17'}, pilar:{pct:75, start:'2026-06-17',end:'2026-06-17'}},
-  {id:'v6',  num:6,  start:'2026-06-18',end:'2026-06-29', tesoura:{pct:67, start:'2026-06-18',end:'2026-06-26'}, pilar:{pct:67, start:'2026-06-19',end:'2026-06-29'}},
-  {id:'v7',  num:7,  start:'2026-06-19',end:'2026-06-30', tesoura:{pct:50, start:'2026-06-19',end:'2026-06-29'}, pilar:{pct:50, start:'2026-06-19',end:'2026-06-30'}},
-  {id:'v8',  num:8,  start:'2026-06-22',end:'2026-07-01', tesoura:{pct:67, start:'2026-06-22',end:'2026-06-30'}, pilar:{pct:67, start:'2026-06-22',end:'2026-07-01'}},
-  {id:'v9',  num:9,  start:'2026-06-22',end:'2026-07-02', tesoura:{pct:15, start:'2026-06-22',end:'2026-07-01'}, pilar:{pct:15, start:'2026-06-22',end:'2026-07-02'}},
-  {id:'v10', num:10, start:'2026-06-24',end:'2026-07-03', tesoura:{pct:0,  start:'2026-06-24',end:'2026-07-02'}, pilar:{pct:0,  start:'2026-06-25',end:'2026-07-03'}},
-  {id:'v11', num:11, start:'2026-06-26',end:'2026-07-07', tesoura:{pct:0,  start:'2026-06-26',end:'2026-07-06'}, pilar:{pct:0,  start:'2026-06-29',end:'2026-07-07'}},
-  {id:'v12', num:12, start:'2026-06-30',end:'2026-07-08', tesoura:{pct:0,  start:'2026-06-30',end:'2026-07-07'}, pilar:{pct:0,  start:'2026-07-01',end:'2026-07-08'}},
-  {id:'v13', num:13, start:'2026-07-02',end:'2026-07-09', tesoura:{pct:0,  start:'2026-07-02',end:'2026-07-08'}, pilar:{pct:0,  start:'2026-07-03',end:'2026-07-09'}},
-  {id:'v14', num:14, start:'2026-07-06',end:'2026-07-09', tesoura:{pct:0,  start:'2026-07-06',end:'2026-07-09'}, pilar:{pct:0,  start:'2026-07-07',end:'2026-07-08'}},
-  {id:'v15', num:15, start:'2026-07-07',end:'2026-07-10', tesoura:{pct:0,  start:'2026-07-07',end:'2026-07-10'}, pilar:{pct:0,  start:'2026-07-08',end:'2026-07-10'}},
-  {id:'v16', num:16, start:'2026-07-08',end:'2026-07-13', tesoura:{pct:0,  start:'2026-07-08',end:'2026-07-13'}, pilar:{pct:0,  start:'2026-07-09',end:'2026-07-13'}},
+Babel.registerPreset('react-classic',{presets:[[Babel.availablePresets['react'],{runtime:'classic'}]]});
+</script>
+<script type="text/babel" data-presets="react-classic,env">
+const {useState,useEffect,useRef,useCallback,useMemo}=React;
+
+/* ═══════════════ CONSTANTES ═══════════════ */
+const S={P:'pendente',L:'lixando',LX:'lixado',PT:'pintando',C:'completo'};
+const SORD=['pendente','lixando','lixado','pintando','completo'];
+const SCOR={pendente:'#9CA3AF',lixando:'#FBBF24',lixado:'#F97316',pintando:'#3B82F6',completo:'#22C55E'};
+const SLAB={pendente:'Pendente',lixando:'Em Lixamento',lixado:'Lixado',pintando:'Em Pintura',completo:'Pintado ✓'};
+const TLAB={pilar:'Pilar',tesoura:'Tesoura',tc:'Terça Cob.',tf:'Terça Fech.'};
+const TLABP={pilar:'Pilares',tesoura:'Tesouras',tc:'Terças Cob.',tf:'Terças Fech.'};
+const pad2=n=>String(n).padStart(2,'0');
+const VERSION='2.0.0';
+
+/* ═══════════════ TELHAS — FASE INSTALAÇÃO ═══════════════ */
+const TILES_PER_BAY=7;                                        // 7 telhas por vão (c.3)
+const NF_DEFAULT=8;                                           // telhas do oitão frontal
+const TILE_LEN={cobEsq:8.9,cobDir:8.9,fechDir:8.9,lant:1.5,frontal:1.5}; // comprimento p/ ponderar (d.5)
+const COR_TELHA_AZUL='#20396B';   // ≈ RAL 5003 (azul safira) — telha substituída/instalada (e.6)
+const COR_METALICA='#AEB4BC';     // telha metálica (não substituída / pendente) (h.9)
+const COR_REDE='#22C55E';         // rede de proteção (c.4)
+const TELHA_LOCS=[
+  {k:'cobEsq', l:'Cob. Esq.',  c:'#3B82F6'},
+  {k:'cobDir', l:'Cob. Dir.',  c:'#2563EB'},
+  {k:'lant',   l:'Lanternin',  c:'#8B5CF6'},
+  {k:'fechDir',l:'Fech. Dir.', c:'#0EA5E9'},
 ];
-
-const PHASES = [
-  {id:'tercas',    label:'Terças Perimetrais',       color:'#f59e0b', start:'2026-05-15',end:'2026-07-06', pct:63},
-  {id:'telhas',    label:'Substituição de Telhas',   color:'#8b5cf6', start:'2026-07-07',end:'2026-08-19', pct:0},
-  {id:'linhavida', label:'Linha de Vida Definitiva', color:'#14b8a6', start:'2026-08-20',end:'2026-08-24', pct:0},
-  {id:'spda',      label:'SPDA',                     color:'#3b82f6', start:'2026-08-20',end:'2026-08-25', pct:0},
-  {id:'entrega',   label:'Entrega / Desmobilização', color:'#22c55e', start:'2026-08-26',end:'2026-08-28', pct:0},
-  {id:'relatorios',label:'Relatórios / As Built / ART',color:'#64748b',start:'2026-08-26',end:'2026-08-28', pct:0},
-];
-
-const PROJ_START = '2026-03-25';
-const OBRA_START = '2026-05-11';
-const PROJ_END   = '2026-08-31';
-function todayISO(){const n=new Date();return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');}
-const TODAY      = todayISO();
-
-const DEFAULT_CURVAS = [
-  {dt:'2026-05-11',planDia:1,  realDia:1},
-  {dt:'2026-05-12',planDia:0,  realDia:0},
-  {dt:'2026-05-13',planDia:0,  realDia:0},
-  {dt:'2026-05-14',planDia:0,  realDia:0},
-  {dt:'2026-05-15',planDia:2,  realDia:2},
-  {dt:'2026-05-16',planDia:0,  realDia:0},
-  {dt:'2026-05-17',planDia:0,  realDia:0},
-  {dt:'2026-05-18',planDia:2,  realDia:2},
-  {dt:'2026-05-19',planDia:4,  realDia:4},
-  {dt:'2026-05-20',planDia:4,  realDia:4},
-  {dt:'2026-05-21',planDia:0,  realDia:0},
-  {dt:'2026-05-22',planDia:0,  realDia:0},
-  {dt:'2026-05-23',planDia:0,  realDia:0},
-  {dt:'2026-05-24',planDia:0,  realDia:0},
-  {dt:'2026-05-25',planDia:0,  realDia:0},
-  {dt:'2026-05-26',planDia:1,  realDia:1},
-  {dt:'2026-05-27',planDia:1,  realDia:1},
-  {dt:'2026-05-28',planDia:0,  realDia:0},
-  {dt:'2026-05-29',planDia:0,  realDia:0.5},
-  {dt:'2026-05-30',planDia:0,  realDia:0},
-  {dt:'2026-05-31',planDia:0,  realDia:0},
-  {dt:'2026-06-01',planDia:0,  realDia:0.5},
-  {dt:'2026-06-02',planDia:1,  realDia:1},
-  {dt:'2026-06-03',planDia:1,  realDia:1},
-  {dt:'2026-06-04',planDia:1,  realDia:1},
-  {dt:'2026-06-05',planDia:1,  realDia:1},
-  {dt:'2026-06-06',planDia:0,  realDia:0},
-  {dt:'2026-06-07',planDia:0,  realDia:0},
-  {dt:'2026-06-08',planDia:1,  realDia:0},
-  {dt:'2026-06-09',planDia:0,  realDia:1},
-  {dt:'2026-06-10',planDia:0,  realDia:0},
-  {dt:'2026-06-11',planDia:1,  realDia:1},
-  {dt:'2026-06-12',planDia:0,  realDia:0},
-  {dt:'2026-06-13',planDia:0,  realDia:0},
-  {dt:'2026-06-14',planDia:0,  realDia:0},
-  {dt:'2026-06-15',planDia:2,  realDia:2},
-  {dt:'2026-06-16',planDia:2,  realDia:2},
-  {dt:'2026-06-17',planDia:3,  realDia:null},
-  {dt:'2026-06-18',planDia:4,  realDia:null},
-  {dt:'2026-06-19',planDia:3,  realDia:null},
-  {dt:'2026-06-20',planDia:0,  realDia:null},
-  {dt:'2026-06-21',planDia:0,  realDia:null},
-  {dt:'2026-06-22',planDia:3,  realDia:null},
-  {dt:'2026-06-23',planDia:3,  realDia:null},
-  {dt:'2026-06-24',planDia:2,  realDia:null},
-  {dt:'2026-06-25',planDia:1,  realDia:null},
-  {dt:'2026-06-26',planDia:1,  realDia:null},
-  {dt:'2026-06-27',planDia:0,  realDia:null},
-  {dt:'2026-06-28',planDia:0,  realDia:null},
-  {dt:'2026-06-29',planDia:1,  realDia:null},
-  {dt:'2026-06-30',planDia:1,  realDia:null},
-  {dt:'2026-07-01',planDia:2,  realDia:null},
-  {dt:'2026-07-02',planDia:2,  realDia:null},
-  {dt:'2026-07-03',planDia:2,  realDia:null},
-  {dt:'2026-07-04',planDia:0,  realDia:null},
-  {dt:'2026-07-05',planDia:0,  realDia:null},
-  {dt:'2026-07-06',planDia:2,  realDia:null},
-  {dt:'2026-07-07',planDia:2,  realDia:null},
-  {dt:'2026-07-08',planDia:2,  realDia:null},
-  {dt:'2026-07-09',planDia:2,  realDia:null},
-  {dt:'2026-07-10',planDia:2,  realDia:null},
-  {dt:'2026-07-11',planDia:0,  realDia:null},
-  {dt:'2026-07-12',planDia:0,  realDia:null},
-  {dt:'2026-07-13',planDia:2,  realDia:null},
-  {dt:'2026-07-14',planDia:2,  realDia:null},
-  {dt:'2026-07-15',planDia:1,  realDia:null},
-  {dt:'2026-07-16',planDia:1,  realDia:null},
-  {dt:'2026-07-17',planDia:1,  realDia:null},
-  {dt:'2026-07-18',planDia:0,  realDia:null},
-  {dt:'2026-07-19',planDia:0,  realDia:null},
-  {dt:'2026-07-20',planDia:1,  realDia:null},
-  {dt:'2026-07-21',planDia:1,  realDia:null},
-  {dt:'2026-07-22',planDia:1,  realDia:null},
-  {dt:'2026-07-23',planDia:1,  realDia:null},
-  {dt:'2026-07-24',planDia:1,  realDia:null},
-  {dt:'2026-07-25',planDia:0,  realDia:null},
-  {dt:'2026-07-26',planDia:0,  realDia:null},
-  {dt:'2026-07-27',planDia:1,  realDia:null},
-  {dt:'2026-07-28',planDia:1,  realDia:null},
-  {dt:'2026-07-29',planDia:1,  realDia:null},
-  {dt:'2026-07-30',planDia:1,  realDia:null},
-  {dt:'2026-07-31',planDia:1,  realDia:null},
-  {dt:'2026-08-01',planDia:0,  realDia:null},
-  {dt:'2026-08-02',planDia:0,  realDia:null},
-  {dt:'2026-08-03',planDia:1,  realDia:null},
-  {dt:'2026-08-04',planDia:1,  realDia:null},
-  {dt:'2026-08-05',planDia:0,  realDia:null},
-  {dt:'2026-08-06',planDia:1,  realDia:null},
-  {dt:'2026-08-07',planDia:0,  realDia:null},
-  {dt:'2026-08-08',planDia:0,  realDia:null},
-  {dt:'2026-08-09',planDia:0,  realDia:null},
-  {dt:'2026-08-10',planDia:1,  realDia:null},
-  {dt:'2026-08-11',planDia:0,  realDia:null},
-  {dt:'2026-08-12',planDia:1,  realDia:null},
-  {dt:'2026-08-13',planDia:0,  realDia:null},
-  {dt:'2026-08-14',planDia:1,  realDia:null},
-  {dt:'2026-08-15',planDia:0,  realDia:null},
-  {dt:'2026-08-16',planDia:0,  realDia:null},
-  {dt:'2026-08-17',planDia:1,  realDia:null},
-  {dt:'2026-08-18',planDia:1,  realDia:null},
-  {dt:'2026-08-19',planDia:1,  realDia:null},
-  {dt:'2026-08-20',planDia:1,  realDia:null},
-  {dt:'2026-08-21',planDia:1,  realDia:null},
-  {dt:'2026-08-22',planDia:0,  realDia:null},
-  {dt:'2026-08-23',planDia:0,  realDia:null},
-  {dt:'2026-08-24',planDia:1,  realDia:null},
-  {dt:'2026-08-25',planDia:1,  realDia:null},
-  {dt:'2026-08-26',planDia:1,  realDia:null},
-  {dt:'2026-08-27',planDia:1,  realDia:null},
-  {dt:'2026-08-28',planDia:1,  realDia:null},
-  {dt:'2026-08-29',planDia:0,  realDia:null},
-  {dt:'2026-08-30',planDia:0,  realDia:null},
-  {dt:'2026-08-31',planDia:1,  realDia:null},
-  {dt:'2026-09-01',planDia:1,  realDia:null},
-  {dt:'2026-09-02',planDia:1,  realDia:null},
-  {dt:'2026-09-03',planDia:1,  realDia:null},
-];
-
-function DEFAULT_STATE(){
-  const vaos={};
-  VAOS.forEach(v=>{vaos[v.id]={tesoura:v.tesoura.pct,pilar:v.pilar.pct}});
-  const phases={};
-  PHASES.forEach(p=>{phases[p.id]=p.pct});
-  return {
-    vaos,
-    phases,
-    curvas: JSON.parse(JSON.stringify(DEFAULT_CURVAS)),
-    indicadores:{
-      dataRef:TODAY,
-      fPlanSem:0, fRealSem:0, fPlanAcum:0, fRealAcum:0,
-      tercasPlanSem:0, tercasRealSem:0, tercasPlanAcum:0, tercasRealAcum:0,
-      estrutPlanSem:0, estrutRealSem:0, estrutPlanAcum:0, estrutRealAcum:0,
-      telhasPlanSem:0, telhasRealSem:0, telhasPlanAcum:0, telhasRealAcum:0,
-      sinaleiro:'verde', obs:''
-    }
-  };
+const nBays=cfg=>Math.max(0,(+(cfg&&cfg.eixos)||1)-1);        // vãos de telha = eixos-1
+const LANT_MARGIN=1;                                          // lanternin recuado 1 vão em cada ponta
+const hasLant=(cfg,b)=>{const nb=nBays(cfg);return b>=1+LANT_MARGIN&&b<=nb-LANT_MARGIN;};
+function ensureBay(telhas,b){
+  const x=(telhas&&telhas.bays&&telhas.bays[b])||{};
+  const clamp=v=>Math.max(0,Math.min(TILES_PER_BAY,+v||0));
+  return{cobEsq:clamp(x.cobEsq),cobDir:clamp(x.cobDir),lant:clamp(x.lant),fechDir:clamp(x.fechDir),rede:!!x.rede};
 }
-
-let state;
-
-// ============================
-// UTILS
-// ============================
-function d(s){return new Date(s+'T12:00:00')}
-function fmt(s){return d(s).toLocaleDateString('pt-BR',{day:'2-digit',month:'2-digit',year:'2-digit'})}
-function daysBetween(a,b){return Math.round((d(b)-d(a))/(1000*60*60*24))}
-function pctColor(p){return p===100?'#22c55e':p>=60?'#3b82f6':p>0?'#f59e0b':'#4b5563'}
-function pctBadge(p){
-  if(p===100)return '<span class="badge bd-done">Concluído</span>';
-  if(p>0)    return '<span class="badge bd-prog">Em execução</span>';
-  return '<span class="badge bd-pend">Pendente</span>';
-}
-function vaoOverall(id){
-  const v=state.vaos[id];
-  return Math.round((v.tesoura+v.pilar)/2);
-}
-function overallGeral(){
-  const vSum=VAOS.reduce((a,v)=>a+vaoOverall(v.id),0)/VAOS.length;
-  const pSum=PHASES.reduce((a,p)=>a+state.phases[p.id],0)/PHASES.length;
-  return Math.round(vSum*0.65+pSum*0.35);
-}
-
-// ============================
-// TABS
-// ============================
-function showTab(id){
-  document.querySelectorAll('.tab-btn').forEach(b=>{
-    b.classList.toggle('active',(b.getAttribute('onclick')||'').includes("'"+id+"'"));
-  });
-  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
-  document.getElementById('tab-'+id).classList.add('active');
-  if(id==='curvas'){setTimeout(renderCurvaS,50);}
-  if(id==='cronograma'){renderGantt();}
-}
-
-// ============================
-// DASHBOARD
-// ============================
-function renderDashboard(){
-  // Valores da Curva S
-  const comp=computeCurvas(state.curvas);
-  const todayPlanRow=[...comp].filter(r=>r.dt&&r.dt<=TODAY).sort((a,b)=>b.dt.localeCompare(a.dt))[0];
-  const planAcum=todayPlanRow?todayPlanRow.planAcum:null;
-  const realRows=comp.filter(r=>r.realAcum!=null&&r.dt);
-  const lastRealRow=realRows.length?realRows[realRows.length-1]:null;
-  const realAcum=lastRealRow?lastRealRow.realAcum:null;
-  const desvio=(realAcum!=null&&planAcum!=null)?Math.round((realAcum-planAcum)*10)/10:null;
-  const desvioKC=desvio==null?'var(--dim)':desvio>=0?'#22c55e':'#ef4444';
-  const desvioStr=desvio==null?'—':fmtPct(desvio,true);
-  const desvioSub=desvio==null?'Sem dados':desvio>0?'Adiantado':desvio===0?'No prazo':'Atrasado';
-
-  const elapsed=daysBetween(OBRA_START,TODAY);
-  const total=daysBetween(OBRA_START,PROJ_END);
-  const remaining=daysBetween(TODAY,PROJ_END);
-  const done=VAOS.filter(v=>vaoOverall(v.id)===100).length;
-  const tercas=state.phases.tercas;
-  document.getElementById('kpi-strip').innerHTML=`
-    <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Avanço Planejado</div><div class="kpi-val" style="color:#3b82f6">${planAcum!=null?fmtPct(planAcum):'—'}</div><div class="kpi-sub">Acumulado hoje</div></div>
-    <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Avanço Real</div><div class="kpi-val" style="color:#22c55e">${realAcum!=null?fmtPct(realAcum):'—'}</div><div class="kpi-sub">${lastRealRow?'Ref: '+lastRealRow.dt:'Sem dados'}</div></div>
-    <div class="kpi" style="--kc:${desvioKC}"><div class="kpi-lbl">Desvio</div><div class="kpi-val" style="color:${desvioKC}">${desvioStr}</div><div class="kpi-sub">${desvioSub}</div></div>
-    <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Vãos Concluídos</div><div class="kpi-val">${done}/16</div><div class="kpi-sub">100% completo</div></div>
-    <div class="kpi" style="--kc:#f59e0b"><div class="kpi-lbl">Terças Perimetrais</div><div class="kpi-val">${tercas}%</div><div class="kpi-sub">15/05 → 06/07/26</div></div>
-    <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Dias Decorridos</div><div class="kpi-val">${elapsed}</div><div class="kpi-sub">de ${total} dias totais</div></div>
-    <div class="kpi" style="--kc:#ef4444"><div class="kpi-lbl">Dias Restantes</div><div class="kpi-val">${remaining}</div><div class="kpi-sub">Término: 31/08/2026</div></div>
-  `;
-  const vg=document.getElementById('vaos-grid');
-  vg.innerHTML=VAOS.map(v=>{
-    const s=state.vaos[v.id];
-    const overall=Math.round((s.tesoura+s.pilar)/2);
-    const c=pctColor(overall);
-    return `<div class="vao-card" style="--vc:${c}" onclick="openEditVao('${v.id}')">
-      <div class="vao-hdr"><span class="vao-num">Vão ${v.num}</span></div>
-      <div class="vao-pct">${overall}%</div>
-      <div class="vao-svc-row">
-        <div class="vao-svc" style="color:${pctColor(s.tesoura)}">Tesoura ${s.tesoura}%</div>
-        <div class="vao-svc" style="color:${pctColor(s.pilar)}">Pilar ${s.pilar}%</div>
-      </div>
-      <div class="vao-bar"><div class="vao-bar-fill" style="width:${overall}%;background:${c}"></div></div>
-    </div>`;
-  }).join('');
-  const pg=document.getElementById('phases-grid');
-  pg.innerHTML=PHASES.map(p=>{
-    const pct=state.phases[p.id];
-    return `<div class="ph-card" style="--pc:${p.color}" onclick="openEditPhases()">
-      <div class="ph-lbl">${p.label}</div>
-      <div class="ph-pct">${pct}%</div>
-      <div class="ph-dates">${fmt(p.start)} → ${fmt(p.end)}</div>
-      <div class="ph-bar"><div class="ph-bar-fill" style="width:${pct}%;background:${p.color}"></div></div>
-    </div>`;
-  }).join('');
-}
-
-// ============================
-// MAPA
-// ============================
-function renderMapa(){
-  const cols=['Tesoura','Pilar','Geral'];
-  let rows='';
-  VAOS.forEach(v=>{
-    const s=state.vaos[v.id];
-    const overall=Math.round((s.tesoura+s.pilar)/2);
-    function cell(p){
-      const c=pctColor(p);
-      return `<td><span class="map-cell" style="background:${c}22;color:${c};border:1px solid ${c}44">${p}%</span></td>`;
-    }
-    rows+=`<tr><td style="text-align:left;font-weight:700;color:var(--text)">Vão ${v.num}</td>${cell(s.tesoura)}${cell(s.pilar)}${cell(overall)}</tr>`;
-  });
-  document.getElementById('mapa-content').innerHTML=`
-    <table class="map-grid">
-      <thead><tr><th style="text-align:left">Vão</th><th>Tesoura</th><th>Pilar</th><th>Geral</th></tr></thead>
-      <tbody>${rows}</tbody>
-    </table>
-    <div style="margin-top:18px">
-      <div class="sec-title" style="margin-top:0">Planta Esquemática — Galpão</div>
-      <div style="overflow-x:auto">${buildingMap()}</div>
-    </div>
-  `;
-}
-
-function buildingMap(){
-  const W=900,H=320,padL=60,padT=50,padR=40,padB=30;
-  const cols=4,rows=4;
-  const cw=(W-padL-padR)/cols, rh=(H-padT-padB)/rows;
-  let rects='';
-  for(let r=0;r<rows;r++){
-    for(let c=0;c<cols;c++){
-      const idx=r*cols+c;
-      const v=VAOS[idx];
-      if(!v)continue;
-      const s=state.vaos[v.id];
-      const overall=Math.round((s.tesoura+s.pilar)/2);
-      const clr=pctColor(overall);
-      const x=padL+c*cw, y=padT+r*rh;
-      rects+=`<rect x="${x+2}" y="${y+2}" width="${cw-4}" height="${rh-4}" rx="6" fill="${clr}22" stroke="${clr}" stroke-width="1.5"/>
-        <text x="${x+cw/2}" y="${y+rh/2-8}" text-anchor="middle" fill="${clr}" font-family="Barlow Condensed,sans-serif" font-weight="800" font-size="15">Vão ${v.num}</text>
-        <text x="${x+cw/2}" y="${y+rh/2+10}" text-anchor="middle" fill="${clr}" font-family="Barlow Condensed,sans-serif" font-weight="700" font-size="20">${overall}%</text>`;
-    }
+function calcTelhas(project){
+  const telhas=project.telhas||{};
+  const NB=nBays(project.config), NF=+telhas.nFrontal||NF_DEFAULT;
+  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},frontal:{i:0,t:0}};
+  for(let b=1;b<=NB;b++){
+    const bd=ensureBay(telhas,b);
+    ['cobEsq','cobDir','fechDir'].forEach(k=>{loc[k].i+=bd[k];loc[k].t+=TILES_PER_BAY;});
+    if(hasLant(project.config,b)){loc.lant.i+=bd.lant;loc.lant.t+=TILES_PER_BAY;}  // lanternin só nos vãos centrais
   }
-  const colLabels=['Bloco A','Bloco B','Bloco C','Bloco D'];
-  let hdr=colLabels.map((l,i)=>`<text x="${padL+i*cw+cw/2}" y="${padT-18}" text-anchor="middle" fill="#64748b" font-family="Barlow Condensed,sans-serif" font-size="12" letter-spacing="1">${l}</text>`).join('');
-  return `<svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:${W}px;display:block" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${W}" height="${H}" fill="#0a1220" rx="8"/>
-    <rect x="${padL}" y="${padT}" width="${W-padL-padR}" height="${H-padT-padB}" fill="none" stroke="rgba(245,184,0,0.2)" stroke-width="1.5" rx="6"/>
-    <text x="${W/2}" y="24" text-anchor="middle" fill="#f5b800" font-family="Barlow Condensed,sans-serif" font-weight="700" font-size="13" letter-spacing="2">GALPÃO OPERACIONAL GERDAU BELÉM</text>
-    ${hdr}
-    ${rects}
-  </svg>`;
+  loc.frontal.i=Math.max(0,Math.min(NF,+telhas.frontal||0));loc.frontal.t=NF;
+  let wi=0,wt=0;
+  Object.keys(loc).forEach(k=>{const w=TILE_LEN[k]||1;wi+=loc[k].i*w;wt+=loc[k].t*w;});
+  const r1=x=>Math.round(x*10)/10;
+  const pctLoc={};Object.keys(loc).forEach(k=>{pctLoc[k]=loc[k].t>0?r1(loc[k].i/loc[k].t*100):0;});
+  const totInst=Object.values(loc).reduce((a,v)=>a+v.i,0);
+  const totTelhas=Object.values(loc).reduce((a,v)=>a+v.t,0);
+  return{geral:wt>0?r1(wi/wt*100):0,loc,pctLoc,NB,NF,totInst,totTelhas};
 }
 
-// ============================
-// GANTT
-// ============================
-function renderGantt(){
-  const W=1050,padL=210,padR=20,padT=42,ROW=28;
-  const tasks=buildGanttTasks();
-  const H=padT+tasks.length*ROW+10;
-  const pS=d(PROJ_START), pE=d(PROJ_END);
-  const totalDays=(pE-pS)/(1000*60*60*24);
-  const chartW=W-padL-padR;
-  function x(dt){return padL+Math.max(0,Math.min(1,(d(dt)-pS)/(pE-pS)))*chartW;}
-  function xd(days){return days/totalDays*chartW;}
+/* ═══════════════════════════════════════════════════════════
+   FIREBASE CONFIG
+   Substitua os valores abaixo com o seu firebaseConfig.
+   Obtenha em: console.firebase.google.com → Seu Projeto → </> (Web App)
+   ═══════════════════════════════════════════════════════════ */
+const FIREBASE_CONFIG={
+  apiKey:"AIzaSyAv8rEh1a2SKGYd4Am45vgJrXa0OrHsq5A",
+  authDomain:"galpaotrack.firebaseapp.com",
+  databaseURL:"https://galpaotrack-default-rtdb.firebaseio.com",
+  projectId:"galpaotrack",
+  storageBucket:"galpaotrack.firebasestorage.app",
+  messagingSenderId:"445368408598",
+  appId:"1:445368408598:web:1380fd505144c664c1f337"
+};
+const FIREBASE_OK=FIREBASE_CONFIG.apiKey!=='COLE_AQUI'&&FIREBASE_CONFIG.databaseURL!=='COLE_AQUI';
+let db=null;
+if(FIREBASE_OK){
+  try{const app=firebase.initializeApp(FIREBASE_CONFIG);db=firebase.database(app);}
+  catch(e){console.error('Firebase init:',e);}
+}
 
-  // Month labels
-  let months='';
-  let cur=new Date(pS); cur.setDate(1);
-  while(cur<=pE){
-    const xx=padL+(cur-pS)/(pE-pS)*chartW;
-    const lbl=cur.toLocaleDateString('pt-BR',{month:'short',year:'2-digit'}).replace(' de ','/'). replace('.','');
-    months+=`<text x="${xx}" y="${padT-10}" fill="#64748b" font-size="10" font-family="Barlow Condensed,sans-serif">${lbl.toUpperCase()}</text>`;
-    months+=`<line x1="${xx}" y1="${padT-2}" x2="${xx}" y2="${H-10}" stroke="rgba(255,255,255,.04)" stroke-width="1"/>`;
-    cur.setMonth(cur.getMonth()+1);
-  }
-
-  // Today line
-  const todayX=x(TODAY);
-  const todayLine=`<line x1="${todayX}" y1="${padT-2}" x2="${todayX}" y2="${H-10}" stroke="#f5b800" stroke-width="1.5" stroke-dasharray="4,3"/>
-    <text x="${todayX+3}" y="${padT-10}" fill="#f5b800" font-size="9" font-family="Barlow Condensed,sans-serif">HOJE</text>`;
-
-  // Rows
-  let rows='',labels='';
-  tasks.forEach((t,i)=>{
-    const y=padT+i*ROW;
-    const isGrp=t.group;
-    const bg=i%2===0?'rgba(255,255,255,.015)':'transparent';
-    rows+=`<rect x="0" y="${y}" width="${W}" height="${ROW}" fill="${isGrp?'rgba(245,184,0,.03)':bg}"/>`;
-    labels+=`<text x="${padL-8}" y="${y+ROW/2+4}" text-anchor="end" fill="${isGrp?'#f5b800':'#cbd5e1'}" font-size="${isGrp?11:10}" font-family="${isGrp?'Barlow Condensed':'Barlow'},sans-serif" font-weight="${isGrp?700:400}">${t.label}</text>`;
-    if(!isGrp && t.start && t.end){
-      const x1=x(t.start), x2=x(t.end);
-      const bw=Math.max(4,x2-x1);
-      const filledW=bw*t.pct/100;
-      rows+=`<rect x="${x1}" y="${y+5}" width="${bw}" height="${ROW-10}" rx="3" fill="${t.color}33" stroke="${t.color}" stroke-width="1"/>`;
-      if(filledW>0) rows+=`<rect x="${x1}" y="${y+5}" width="${filledW}" height="${ROW-10}" rx="3" fill="${t.color}"/>`;
-      if(t.pct>0) rows+=`<text x="${Math.min(x1+filledW+3,W-padR-20)}" y="${y+ROW/2+4}" fill="${t.color}" font-size="9" font-family="Barlow Condensed,sans-serif" font-weight="700">${t.pct}%</text>`;
-    }
+/* ═══════════════ HELPERS FIREBASE ═══════════════ */
+// Firebase converte arrays em objetos — este helper normaliza de volta
+const toArr=v=>!v?[]:Array.isArray(v)?v:Object.values(v);
+const normProject=data=>{
+  if(!data?.elements)return data;
+  const els={};
+  Object.entries(data.elements).forEach(([id,el])=>{
+    els[id]={...el,history:toArr(el.history)};
   });
-
-  document.getElementById('gantt-content').innerHTML=`
-    <div class="gantt-wrap">
-      <svg viewBox="0 0 ${W} ${H}" style="width:100%;min-width:700px;display:block" xmlns="http://www.w3.org/2000/svg">
-        <rect width="${W}" height="${H}" fill="#0a1220" rx="8"/>
-        <rect x="${padL}" y="${padT-2}" width="${chartW}" height="${H-padT-8}" fill="rgba(255,255,255,.01)" rx="2"/>
-        ${months}${todayLine}${rows}${labels}
-      </svg>
-    </div>
-  `;
-}
-
-function buildGanttTasks(){
-  const t=[];
-  t.push({label:'TERÇAS PERIMETRAIS',group:true});
-  t.push({label:'Terças Perimetrais',start:'2026-05-15',end:'2026-07-06',pct:state.phases.tercas,color:'#f59e0b'});
-  t.push({label:'RECUPERAÇÃO ESTRUTURAL',group:true});
-  VAOS.forEach(v=>{
-    const s=state.vaos[v.id];
-    const overall=Math.round((s.tesoura+s.pilar)/2);
-    const eStart=v.start<'2026-05-01'?v.tesoura.start:v.start;
-    t.push({label:`Vão ${v.num}`,start:eStart,end:v.end,pct:overall,color:pctColor(overall)});
-  });
-  t.push({label:'OUTROS SERVIÇOS',group:true});
-  const phColors={telhas:'#8b5cf6',linhavida:'#14b8a6',spda:'#3b82f6',entrega:'#22c55e',relatorios:'#64748b'};
-  PHASES.filter(p=>p.id!=='tercas').forEach(p=>{
-    t.push({label:p.label,start:p.start,end:p.end,pct:state.phases[p.id],color:phColors[p.id]||'#64748b'});
-  });
-  return t;
-}
-
-// ============================
-// TAREFAS
-// ============================
-function renderTarefas(){
-  let html='';
-  html+=`<tr class="grp"><td colspan="8">RECUPERAÇÃO ESTRUTURAL — VÃOS</td></tr>`;
-  VAOS.forEach((v,i)=>{
-    const s=state.vaos[v.id];
-    const overall=Math.round((s.tesoura+s.pilar)/2);
-    const c=pctColor(overall);
-    function bar(p){const cc=pctColor(p);return `<span class="pct-bar"><span class="pct-fill" style="width:${p}%;background:${cc}"></span></span>${p}%`;}
-    html+=`<tr>
-      <td style="color:var(--dim)">${i+1}</td>
-      <td style="font-weight:600">Vão ${v.num}</td>
-      <td style="color:var(--dim);font-size:.78rem">${fmt(v.start)}</td>
-      <td style="color:var(--dim);font-size:.78rem">${fmt(v.end)}</td>
-      <td>${bar(s.tesoura)}</td>
-      <td>${bar(s.pilar)}</td>
-      <td style="color:${c};font-weight:700">${overall}%</td>
-      <td>${pctBadge(overall)}</td>
-    </tr>`;
-  });
-  html+=`<tr class="grp"><td colspan="8">OUTROS SERVIÇOS</td></tr>`;
-  PHASES.forEach((p,i)=>{
-    const pct=state.phases[p.id];
-    html+=`<tr>
-      <td style="color:var(--dim)">${i+1}</td>
-      <td style="font-weight:600">${p.label}</td>
-      <td style="color:var(--dim);font-size:.78rem">${fmt(p.start)}</td>
-      <td style="color:var(--dim);font-size:.78rem">${fmt(p.end)}</td>
-      <td colspan="2" style="color:var(--dim);font-size:.78rem;text-align:center">—</td>
-      <td style="color:${pctColor(pct)};font-weight:700">${pct}%</td>
-      <td>${pctBadge(pct)}</td>
-    </tr>`;
-  });
-  document.getElementById('task-tbody').innerHTML=html;
-}
-
-// ============================
-// INDICADORES
-// ============================
-function renderIndicadores(){
-  const ind=state.indicadores;
-  const sig={verde:'🟢',amarelo:'🟡',vermelho:'🔴'};
-  document.getElementById('ind-content').innerHTML=`
-    <div class="ind-grid">
-      ${iBar('Físico Semanal',ind.fRealSem,ind.fPlanSem||1,'%','#3b82f6')}
-      ${iBar('Físico Acumulado',ind.fRealAcum,ind.fPlanAcum||1,'%','#22c55e')}
-      ${iBar('Terças Acumulado',ind.tercasRealAcum,ind.tercasPlanAcum||1,'pçs','#f59e0b')}
-      ${iBar('Estrutura Acumulado',ind.estrutRealAcum,ind.estrutPlanAcum||1,'m²','#14b8a6')}
-      ${iBar('Telhas Acumulado',ind.telhasRealAcum,ind.telhasPlanAcum||1,'m²','#8b5cf6')}
-    </div>
-    <div class="ind-form">
-      <div class="sec-title" style="margin-top:0">Atualizar Indicadores</div>
-      <div class="ind-form-grid">
-        <div class="form-group"><label>Data Ref.</label><input type="date" id="ind-data" value="${ind.dataRef}"></div>
-        <div class="form-group"><label>Sinaleiro</label>
-          <select id="ind-sinal">
-            <option value="verde" ${ind.sinaleiro==='verde'?'selected':''}>🟢 Verde</option>
-            <option value="amarelo" ${ind.sinaleiro==='amarelo'?'selected':''}>🟡 Amarelo</option>
-            <option value="vermelho" ${ind.sinaleiro==='vermelho'?'selected':''}>🔴 Vermelho</option>
-          </select>
-        </div>
-        <div class="form-group"><label>Físico Plan. Semana (%)</label><input type="number" id="ind-fps" value="${ind.fPlanSem}"></div>
-        <div class="form-group"><label>Físico Real. Semana (%)</label><input type="number" id="ind-frs" value="${ind.fRealSem}"></div>
-        <div class="form-group"><label>Físico Plan. Acumulado (%)</label><input type="number" id="ind-fpa" value="${ind.fPlanAcum}"></div>
-        <div class="form-group"><label>Físico Real. Acumulado (%)</label><input type="number" id="ind-fra" value="${ind.fRealAcum}"></div>
-        <div class="form-group"><label>Terças Plan. Semana (pçs)</label><input type="number" id="ind-tps" value="${ind.tercasPlanSem}"></div>
-        <div class="form-group"><label>Terças Real. Semana (pçs)</label><input type="number" id="ind-trs" value="${ind.tercasRealSem}"></div>
-        <div class="form-group"><label>Terças Plan. Acumulado</label><input type="number" id="ind-tpa" value="${ind.tercasPlanAcum}"></div>
-        <div class="form-group"><label>Terças Real. Acumulado</label><input type="number" id="ind-tra" value="${ind.tercasRealAcum}"></div>
-        <div class="form-group"><label>Estrut. Plan. Semana (m²)</label><input type="number" id="ind-eps" value="${ind.estrutPlanSem}"></div>
-        <div class="form-group"><label>Estrut. Real. Semana (m²)</label><input type="number" id="ind-ers" value="${ind.estrutRealSem}"></div>
-        <div class="form-group"><label>Estrut. Plan. Acumulado</label><input type="number" id="ind-epa" value="${ind.estrutPlanAcum}"></div>
-        <div class="form-group"><label>Estrut. Real. Acumulado</label><input type="number" id="ind-era" value="${ind.estrutRealAcum}"></div>
-        <div class="form-group"><label>Telhas Plan. Semana (m²)</label><input type="number" id="ind-lps" value="${ind.telhasPlanSem}"></div>
-        <div class="form-group"><label>Telhas Real. Semana (m²)</label><input type="number" id="ind-lrs" value="${ind.telhasRealSem}"></div>
-        <div class="form-group"><label>Telhas Plan. Acumulado</label><input type="number" id="ind-lpa" value="${ind.telhasPlanAcum}"></div>
-        <div class="form-group"><label>Telhas Real. Acumulado</label><input type="number" id="ind-lra" value="${ind.telhasRealAcum}"></div>
-      </div>
-      <div class="form-group"><label>Observações</label><textarea id="ind-obs" rows="3" style="resize:vertical">${ind.obs||''}</textarea></div>
-      <button class="btn-save" style="max-width:220px" onclick="saveIndicadores()">💾 Salvar Indicadores</button>
-    </div>
-  `;
-}
-
-function iBar(label,real,meta,unid,color){
-  const pct=meta>0?Math.min(100,Math.round(real/meta*100)):0;
-  return `<div class="ind-card" style="--ic:${color}">
-    <div style="font-size:.72rem;color:var(--dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:6px">${label}</div>
-    <div style="display:flex;align-items:baseline;gap:6px;margin-bottom:8px">
-      <span style="font-family:'Barlow Condensed',sans-serif;font-size:1.8rem;font-weight:800;color:${color}">${pct}%</span>
-      <span style="font-size:.7rem;color:var(--dim)">${real}/${meta} ${unid}</span>
-    </div>
-    <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">
-      <div style="height:100%;width:${pct}%;background:${color};border-radius:3px;transition:width .8s"></div>
-    </div>
-  </div>`;
-}
-
-function saveIndicadores(){
-  const ind=state.indicadores;
-  ind.dataRef=document.getElementById('ind-data').value;
-  ind.sinaleiro=document.getElementById('ind-sinal').value;
-  ind.fPlanSem=+document.getElementById('ind-fps').value||0;
-  ind.fRealSem=+document.getElementById('ind-frs').value||0;
-  ind.fPlanAcum=+document.getElementById('ind-fpa').value||0;
-  ind.fRealAcum=+document.getElementById('ind-fra').value||0;
-  ind.tercasPlanSem=+document.getElementById('ind-tps').value||0;
-  ind.tercasRealSem=+document.getElementById('ind-trs').value||0;
-  ind.tercasPlanAcum=+document.getElementById('ind-tpa').value||0;
-  ind.tercasRealAcum=+document.getElementById('ind-tra').value||0;
-  ind.estrutPlanSem=+document.getElementById('ind-eps').value||0;
-  ind.estrutRealSem=+document.getElementById('ind-ers').value||0;
-  ind.estrutPlanAcum=+document.getElementById('ind-epa').value||0;
-  ind.estrutRealAcum=+document.getElementById('ind-era').value||0;
-  ind.telhasPlanSem=+document.getElementById('ind-lps').value||0;
-  ind.telhasRealSem=+document.getElementById('ind-lrs').value||0;
-  ind.telhasPlanAcum=+document.getElementById('ind-lpa').value||0;
-  ind.telhasRealAcum=+document.getElementById('ind-lra').value||0;
-  ind.obs=document.getElementById('ind-obs').value;
-  save();
-  renderIndicadores();
-}
-
-// ============================
-// CURVA S
-// ============================
-
-function fmtPct(v,sign=false){
-  if(v==null)return'—';
-  const s=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  return(sign?(v>=0?'+':'-'):'')+(v<0&&!sign?'-':'')+s+'%';
-}
-
-// Calcula planAcum, realAcum, desvioDia e desvioAcum a partir dos valores diários
-function computeCurvas(curvas){
-  let planAcum=0, realAcum=0;
-  return curvas.map(r=>{
-    planAcum=Math.round((planAcum+(r.planDia||0))*10)/10;
-    let rowRealAcum=null;
-    if(r.realDia!=null){
-      realAcum=Math.round((realAcum+r.realDia)*10)/10;
-      rowRealAcum=realAcum;
-    }
-    const desvioD=r.realDia!=null?Math.round((r.realDia-(r.planDia||0))*10)/10:null;
-    const desvioA=rowRealAcum!=null?Math.round((rowRealAcum-planAcum)*10)/10:null;
-    return {...r,planAcum,realAcum:rowRealAcum,desvioD,desvioA};
-  });
-}
-
-function renderCurvaS(){
-  drawCurvaS();
-  buildCurvaTable();
-}
-
-// Atividades (Vãos/Fases) cujo período programado cobre a data informada
-function tasksForDate(dt){
-  const tasks=[];
-  VAOS.forEach(v=>{
-    if(v.tesoura.start<=dt&&dt<=v.tesoura.end){
-      const pct=state.vaos[v.id]?.tesoura??v.tesoura.pct;
-      tasks.push({label:`Recuperação Estrutural — Vão ${v.num} — Tesoura`,pct,color:pctColor(pct)});
-    }
-    if(v.pilar.start<=dt&&dt<=v.pilar.end){
-      const pct=state.vaos[v.id]?.pilar??v.pilar.pct;
-      tasks.push({label:`Recuperação Estrutural — Vão ${v.num} — Pilar`,pct,color:pctColor(pct)});
-    }
-  });
-  PHASES.forEach(p=>{
-    if(p.start<=dt&&dt<=p.end){
-      const pct=state.phases[p.id]??p.pct;
-      tasks.push({label:p.label,pct,color:p.color});
-    }
-  });
-  return tasks;
-}
-
-function renderDayTasksHtml(tasks){
-  return `<div class="day-tasks-wrap">${tasks.map(t=>`
-    <div class="day-task-chip" style="border-color:${t.color}66">
-      <span class="day-task-dot" style="background:${t.color}"></span>
-      <span class="day-task-lbl">${t.label}</span>
-      <span class="day-task-pct" style="color:${t.color}">${t.pct}%</span>
-    </div>`).join('')}</div>`;
-}
-
-function toggleDayTasks(i){
-  const row=document.getElementById('crow-tasks-'+i);
-  const icon=document.getElementById('tt-icon-'+i);
-  if(!row)return;
-  const isOpen=row.style.display!=='none';
-  row.style.display=isOpen?'none':'table-row';
-  if(icon)icon.textContent=isOpen?'+':'−';
-}
-
-function buildCurvaTable(){
-  const comp=computeCurvas(state.curvas);
-  const rows=comp.map((row,i)=>{
-    const isToday=row.dt===TODAY;
-    const dc=row.desvioA===null?'var(--dim)':row.desvioA>=0?'#22c55e':'#ef4444';
-    const dd=row.desvioD===null?'var(--dim)':row.desvioD>=0?'#22c55e':'#ef4444';
-    const trClass=isToday?'today-row':'';
-    const trStyle=isToday?'style="background:rgba(245,184,0,0.07)"':'';
-    const tasks=tasksForDate(row.dt);
-    const tc=tasks.length;
-    return `<tr id="crow-${i}" class="${trClass}" ${trStyle}>
-      <td>
-        <button class="btn-task-toggle${tc?' has-tasks':''}" onclick="toggleDayTasks(${i})" title="${tc?tc+' atividade(s) programada(s) neste dia — clique para ver':'Nenhuma atividade programada neste dia'}">
-          <span class="tt-plus" id="tt-icon-${i}">+</span><span id="tt-lbl-${i}">${tc?tc+' tarefa'+(tc>1?'s':''):'nenhuma'}</span>
-        </button>
-      </td>
-      <td style="color:var(--dim);white-space:nowrap">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
-      <td><input class="cs-inp cs-inp-d" value="${row.dt}" onchange="updateCurva(${i},'dt',this.value)"></td>
-      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.planDia??''}" placeholder="—" oninput="updateCurva(${i},'planDia',this.value)" style="border-color:rgba(59,130,246,.25)"></td>
-      <td style="color:#3b82f6;font-weight:600">${row.planAcum!=null?fmtPct(row.planAcum):'—'}</td>
-      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.realDia??''}" placeholder="—" oninput="updateCurva(${i},'realDia',this.value)" style="border-color:rgba(34,197,94,.25)"></td>
-      <td style="color:#22c55e;font-weight:600">${row.realAcum!=null?fmtPct(row.realAcum):'—'}</td>
-      <td style="color:${dd};font-weight:700">${row.desvioD===null?'—':fmtPct(row.desvioD,true)}</td>
-      <td style="color:${dc};font-weight:700">${row.desvioA===null?'—':fmtPct(row.desvioA,true)}</td>
-      <td><button class="btn-del" onclick="deleteRow(${i})" title="Remover linha">✕</button></td>
-    </tr>
-    <tr id="crow-tasks-${i}" class="curva-task-row" style="display:none">
-      <td colspan="10">${tc?renderDayTasksHtml(tasks):'<span style="color:var(--dim);font-size:.78rem">Nenhuma atividade programada para este dia.</span>'}</td>
-    </tr>`;
-  }).join('');
-  document.getElementById('curva-tbody').innerHTML=rows;
-  // Rolar até hoje
-  const todayRow=document.getElementById('curva-tbody').querySelector('tr.today-row');
-  if(todayRow)setTimeout(()=>todayRow.scrollIntoView({block:'center',behavior:'smooth'}),100);
-}
-
-function drawCurvaS(){
-  const canvas=document.getElementById('cs-canvas');
-  if(!canvas)return;
-  const W=canvas.parentElement.clientWidth-32||800;
-  canvas.width=W;canvas.height=340;
-  const ctx=canvas.getContext('2d');
-  const ML=52,MR=16,MT=22,MB=48;
-  const cw=W-ML-MR,ch=340-MT-MB;
-  ctx.fillStyle='#0a1220';ctx.fillRect(0,0,W,340);
-
-  const comp=computeCurvas(state.curvas);
-  const validDts=comp.filter(r=>r.dt).map(r=>r.dt).sort();
-  const pS=validDts.length?d(validDts[0]):d(PROJ_START);
-  const pE=validDts.length?d(validDts[validDts.length-1]):d(PROJ_END);
-  const totalMs=pE-pS||1;
-  function cx(dt){return ML+(d(dt)-pS)/totalMs*cw;}
-  function cy(pct){return MT+ch-(Math.max(0,Math.min(100,pct))/100)*ch;}
-
-  // Grid horizontal
-  ctx.lineWidth=1;
-  for(let p=0;p<=100;p+=20){
-    const y=cy(p);
-    ctx.strokeStyle=p===0?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.05)';
-    ctx.beginPath();ctx.moveTo(ML,y);ctx.lineTo(ML+cw,y);ctx.stroke();
-    ctx.fillStyle='#64748b';ctx.font='10px Barlow,sans-serif';ctx.textAlign='right';
-    ctx.fillText(p+'%',ML-6,y+4);
-  }
-  // Grid vertical (meses)
-  let mc=new Date(pS);mc.setDate(1);
-  while(mc<=pE){
-    const xx=cx(mc.toISOString().slice(0,10));
-    ctx.strokeStyle='rgba(255,255,255,0.04)';
-    ctx.beginPath();ctx.moveTo(xx,MT);ctx.lineTo(xx,MT+ch);ctx.stroke();
-    ctx.fillStyle='#64748b';ctx.font='9px Barlow Condensed,sans-serif';ctx.textAlign='left';
-    const mn=mc.toLocaleDateString('pt-BR',{month:'short'}).replace('.','').toUpperCase();
-    ctx.fillText(mn+'/'+String(mc.getFullYear()).slice(2),xx+2,MT+ch+16);
-    mc.setMonth(mc.getMonth()+1);
-  }
-  // Eixos
-  ctx.strokeStyle='rgba(255,255,255,0.15)';ctx.lineWidth=1;ctx.setLineDash([]);
-  ctx.beginPath();ctx.moveTo(ML,MT);ctx.lineTo(ML,MT+ch);ctx.lineTo(ML+cw,MT+ch);ctx.stroke();
-
-  const planRows=comp.filter(r=>r.dt);
-  const realRows=comp.filter(r=>r.realAcum!=null&&r.dt);
-  const lastReal=realRows.length?realRows[realRows.length-1]:null;
-
-  // Área de desvio
-  if(planRows.length>1&&lastReal){
-    const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.planAcum)}));
-    const lastRealY=cy(lastReal.realAcum);
-    const lastRealX=cx(lastReal.dt);
-    ctx.beginPath();
-    ctx.moveTo(planPts[0].x,planPts[0].y);
-    planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.lineTo(planPts[planPts.length-1].x,lastRealY);
-    ctx.lineTo(lastRealX,lastRealY);
-    realRows.map(r=>({x:cx(r.dt),y:cy(r.realAcum)})).reverse().forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.closePath();
-    ctx.fillStyle='rgba(239,68,68,0.08)';ctx.fill();
-  }
-
-  // Linha Planejado (azul)
-  const planPts=planRows.map(r=>({x:cx(r.dt),y:cy(r.planAcum)}));
-  if(planPts.length>1){
-    ctx.beginPath();ctx.moveTo(planPts[0].x,planPts[0].y);
-    planPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle='#3b82f6';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
-  }
-
-  // Linha Realizado — sólida
-  const realPts=realRows.map(r=>({x:cx(r.dt),y:cy(r.realAcum)}));
-  if(realPts.length>1){
-    ctx.beginPath();ctx.moveTo(realPts[0].x,realPts[0].y);
-    realPts.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));
-    ctx.strokeStyle='#22c55e';ctx.lineWidth=2.5;ctx.setLineDash([]);ctx.stroke();
-  }
-
-  // Linha Realizado — carry-forward tracejada
-  if(lastReal&&planPts.length){
-    const lastX=cx(lastReal.dt),lastY=cy(lastReal.realAcum);
-    const endX=planPts[planPts.length-1].x;
-    ctx.beginPath();ctx.moveTo(lastX,lastY);ctx.lineTo(endX,lastY);
-    ctx.strokeStyle='#22c55e';ctx.lineWidth=1.5;ctx.setLineDash([5,4]);ctx.stroke();
-    ctx.setLineDash([]);
-    const todayPlanRow=planRows.find(r=>r.dt>=TODAY);
-    if(todayPlanRow){
-      const dev=Math.round((lastReal.realAcum-todayPlanRow.planAcum)*100)/100;
-      const devStr=fmtPct(dev,true);
-      ctx.fillStyle=dev>=0?'#22c55e':'#ef4444';
-      ctx.font='bold 10px Barlow Condensed,sans-serif';ctx.textAlign='left';
-      ctx.fillText('Desvio: '+devStr,cx(TODAY)+6,cy((lastReal.realAcum+todayPlanRow.planAcum)/2));
-    }
-  }
-
-  // Pontos Realizado (a cada 7 dias + último)
-  realPts.forEach((p,i)=>{
-    if(i%7===0||i===realPts.length-1){
-      ctx.beginPath();ctx.arc(p.x,p.y,3,0,Math.PI*2);
-      ctx.fillStyle='#22c55e';ctx.fill();
-    }
-  });
-
-  // Linha HOJE
-  try{
-    const tx=cx(TODAY);
-    ctx.setLineDash([4,3]);ctx.strokeStyle='#f5b800';ctx.lineWidth=1.5;
-    ctx.beginPath();ctx.moveTo(tx,MT);ctx.lineTo(tx,MT+ch);ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.fillStyle='#f5b800';ctx.font='bold 9px Barlow Condensed,sans-serif';ctx.textAlign='left';
-    ctx.fillText('HOJE',tx+3,MT+11);
-  }catch(e){}
-  ctx.textAlign='left';
-}
-
-function updateCurva(i,field,val){
-  if(field==='planDia'||field==='realDia'){
-    state.curvas[i][field]=val===''?null:parseFloat(val);
-  } else {
-    state.curvas[i][field]=val;
-  }
-  save();
-  buildCurvaTable();
-  drawCurvaS();
-}
-
-function addCurvaRow(){
-  const last=state.curvas[state.curvas.length-1];
-  let nextDt=TODAY;
-  if(last&&last.dt){
-    const nd=d(last.dt);nd.setDate(nd.getDate()+1);
-    nextDt=nd.toISOString().slice(0,10);
-  }
-  state.curvas.push({dt:nextDt,planDia:null,realDia:null});
-  save();buildCurvaTable();drawCurvaS();
-}
-
-function deleteRow(i){
-  if(state.curvas.length<=2){alert('Mínimo 2 linhas na curva.');return;}
-  state.curvas.splice(i,1);
-  save();buildCurvaTable();drawCurvaS();
-}
-
-function clearRealizado(){
-  if(!confirm('Limpar todos os valores de Realizado?'))return;
-  state.curvas.forEach(r=>r.realDia=null);
-  save();buildCurvaTable();drawCurvaS();
-}
-
-function resetCurva(){
-  if(!confirm('Resetar Curva S para valores padrão do cronograma?'))return;
-  state.curvas=JSON.parse(JSON.stringify(DEFAULT_CURVAS));
-  save();buildCurvaTable();drawCurvaS();
-}
-
-function exportCurvaCSV(){
-  const comp=computeCurvas(state.curvas);
-  let csv='Data,Plan. Dia (%),Acum. Plan (%),Real. Dia (%),Acum. Real (%),Desv. Dia,Desv. Acum\n';
-  comp.forEach(r=>{
-    csv+=`${r.dt},${r.planDia??''},${r.planAcum??''},${r.realDia??''},${r.realAcum??''},${r.desvioD??''},${r.desvioA??''}\n`;
-  });
-  const a=document.createElement('a');
-  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(csv);
-  a.download='curva_s_gerdau_belem.csv';a.click();
-}
-
-function importCurvaCSV(e){
-  const f=e.target.files[0];if(!f)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    const lines=ev.target.result.split('\n').filter(l=>l.trim()&&!l.startsWith('Data'));
-    const rows=lines.map(l=>{
-      const p=l.split(',');
-      const dt=p[0]?.trim();
-      const planDia=p[1]?.trim();
-      const realDia=p[3]?.trim();
-      return {dt,planDia:planDia===''||!planDia?null:parseFloat(planDia),realDia:realDia===''||!realDia?null:parseFloat(realDia)};
-    }).filter(r=>r.dt);
-    if(rows.length>0){state.curvas=rows;save();buildCurvaTable();drawCurvaS();}
-    e.target.value='';
-  };
-  reader.readAsText(f);
-}
-
-// ============================
-// EDIT PANEL
-// ============================
-function openEdit(){
-  const sel=document.getElementById('ep-vao');
-  sel.innerHTML=VAOS.map(v=>`<option value="${v.id}">Vão ${v.num}</option>`).join('');
-  syncEditPanel();
-  fillPhaseInputs();
-  document.getElementById('edit-overlay').style.display='block';
-  document.getElementById('edit-panel').classList.add('open');
-}
-function openEditVao(id){
-  openEdit();
-  document.getElementById('ep-vao').value=id;
-  syncEditPanel();
-}
-function openEditPhases(){openEdit();}
-function closeEdit(){
-  document.getElementById('edit-overlay').style.display='none';
-  document.getElementById('edit-panel').classList.remove('open');
-}
-function syncEditPanel(){
-  const id=document.getElementById('ep-vao').value;
-  const s=state.vaos[id];
-  document.getElementById('ep-tesoura').value=s.tesoura;
-  document.getElementById('ep-tesoura-n').value=s.tesoura;
-  document.getElementById('ep-tesoura-val').textContent=s.tesoura;
-  document.getElementById('ep-pilar').value=s.pilar;
-  document.getElementById('ep-pilar-n').value=s.pilar;
-  document.getElementById('ep-pilar-val').textContent=s.pilar;
-}
-function fillPhaseInputs(){
-  document.getElementById('ep-tercas').value=state.phases.tercas;
-  document.getElementById('ep-telhas').value=state.phases.telhas;
-  document.getElementById('ep-linhavida').value=state.phases.linhavida;
-  document.getElementById('ep-spda').value=state.phases.spda;
-  document.getElementById('ep-entrega').value=state.phases.entrega;
-}
-function saveEdit(){
-  const id=document.getElementById('ep-vao').value;
-  state.vaos[id].tesoura=parseInt(document.getElementById('ep-tesoura').value)||0;
-  state.vaos[id].pilar=parseInt(document.getElementById('ep-pilar').value)||0;
-  state.phases.tercas=parseInt(document.getElementById('ep-tercas').value)||0;
-  state.phases.telhas=parseInt(document.getElementById('ep-telhas').value)||0;
-  state.phases.linhavida=parseInt(document.getElementById('ep-linhavida').value)||0;
-  state.phases.spda=parseInt(document.getElementById('ep-spda').value)||0;
-  state.phases.entrega=parseInt(document.getElementById('ep-entrega').value)||0;
-  save();closeEdit();
-  renderDashboard();renderMapa();renderTarefas();renderIndicadores();buildCurvaTable();
-  if(document.getElementById('tab-cronograma').classList.contains('active'))renderGantt();
-}
-
-// ============================
-// STORAGE
-// ============================
-const SK='gerdau_belem_v5';
-function save(){
-  state._upd=new Date().toISOString();
-  localStorage.setItem(SK,JSON.stringify(state));
-  document.getElementById('last-upd').textContent=new Date().toLocaleString('pt-BR');
-  if(typeof window.firebaseSave==='function')window.firebaseSave(state);
-}
-
-// Chamado pelo módulo Firebase sempre que o estado compartilhado muda
-// (na carga inicial e em tempo real quando qualquer usuário salva algo).
-window.onFirebaseUpdate=function(data,isFirst){
-  if(!data){
-    if(state&&state._upd){
-      if(typeof window.firebaseSave==='function')window.firebaseSave(state);
-    } else if(isFirst){
-      document.getElementById('last-upd').textContent='Sem dados salvos ainda';
-    }
-    return;
-  }
-  // Só usa dados do Firebase se forem mais recentes que os dados locais
-  if(state&&state._upd&&(!data._upd||state._upd>data._upd)){
-    if(typeof window.firebaseSave==='function')window.firebaseSave(state);
-    document.getElementById('last-upd').textContent=new Date(state._upd).toLocaleString('pt-BR');
-    return;
-  }
-  state=data;
-  localStorage.setItem(SK,JSON.stringify(state));
-  document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):'—';
-  renderDashboard();renderMapa();renderTarefas();renderIndicadores();renderCurvaS();
-  if(document.getElementById('tab-cronograma').classList.contains('active'))renderGantt();
+  return{...data,elements:els};
 };
 
-function load(){
-  try{
-    const raw=localStorage.getItem(SK);
-    if(raw){
-      const parsed=JSON.parse(raw);
-      state=Object.assign(DEFAULT_STATE(),parsed);
-      // ensure all vaos exist
-      VAOS.forEach(v=>{if(!state.vaos[v.id])state.vaos[v.id]={tesoura:v.tesoura.pct,pilar:v.pilar.pct};});
-      PHASES.forEach(p=>{if(state.phases[p.id]==null)state.phases[p.id]=p.pct;});
-      if(!state.curvas||!state.curvas.length||'plan' in (state.curvas[0]||{}))state.curvas=JSON.parse(JSON.stringify(DEFAULT_CURVAS));
-    } else {
-      state=DEFAULT_STATE();
-    }
-  }catch(e){state=DEFAULT_STATE();}
-  document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):'Carregando da nuvem…';
-}
-function exportData(){
-  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
-  const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
-  a.download='gerdau_belem_backup_'+new Date().toISOString().slice(0,10)+'.json';
-  a.click();
-}
-function importData(e){
-  const f=e.target.files[0];if(!f)return;
-  const reader=new FileReader();
-  reader.onload=ev=>{
-    try{
-      const parsed=JSON.parse(ev.target.result);
-      state=Object.assign(DEFAULT_STATE(),parsed);
-      save();
-      renderDashboard();renderMapa();renderTarefas();renderIndicadores();renderCurvaS();
-      alert('Dados importados com sucesso!');
-    }catch(err){alert('Erro ao importar: '+err.message);}
-    e.target.value='';
-  };
-  reader.readAsText(f);
+/* ═══════════════ ENDEREÇAMENTO ═══════════════ */
+function makeAddr(el){
+  switch(el.type){
+    case'pilar':   return `P.E${pad2(el.axis)}.${el.side}`;
+    case'tesoura': return `TS.E${pad2(el.axis)}${el.vao>1?`.V${el.vao}`:''}`;
+    case'tc':      return `TC.E${pad2(el.axisFrom)}-${pad2(el.axisTo)}.A${el.agua}.P${pad2(el.pos)}`;
+    case'tf':      return `TF.E${pad2(el.axisFrom)}-${pad2(el.axisTo)}.${el.side}.P${pad2(el.pos)}`;
+    default:       return el.id;
+  }
 }
 
-// ============================
-// INIT
-// ============================
-load();
-renderDashboard();
-renderMapa();
-renderTarefas();
-renderIndicadores();
-renderCurvaS();
-window.addEventListener('resize',()=>{
-  if(document.getElementById('tab-curvas').classList.contains('active'))drawCurvaS();
-});
+/* ═══════════════ GERAR ELEMENTOS ═══════════════ */
+function gerarElementos(cfg){
+  const{eixos,vaos=1,aguas=2,nTC=5,nTF=4}=cfg;
+  const els={};
+  for(let e=1;e<=eixos;e++){
+    for(let l=0;l<=vaos;l++){
+      const side=l===0?'LE':l===vaos?'LD':`L${l}`;
+      const id=`P_E${e}_${side}`;
+      els[id]={id,type:'pilar',axis:e,linha:l,side,label:`Pilar E${pad2(e)} ${side}`,status:S.P,history:[]};
+    }
+  }
+  for(let e=1;e<=eixos;e++){
+    for(let v=1;v<=vaos;v++){
+      const id=`TS_E${e}_V${v}`;
+      els[id]={id,type:'tesoura',axis:e,vao:v,label:`Tesoura E${pad2(e)}${vaos>1?` V${v}`:''}`,status:S.P,history:[]};
+    }
+  }
+  const slopes=aguas===2?[1,2]:[1];
+  for(let e=1;e<eixos;e++){
+    for(const a of slopes){
+      for(let p=1;p<=nTC;p++){
+        for(let v=1;v<=vaos;v++){
+          const id=`TC_E${e}${e+1}_A${a}_P${p}_V${v}`;
+          els[id]={id,type:'tc',axisFrom:e,axisTo:e+1,agua:a,pos:p,vao:v,
+            label:`T.Cob E${pad2(e)}-${pad2(e+1)} A${a} P${p}${vaos>1?` V${v}`:''}`,status:S.P,history:[]};
+        }
+      }
+    }
+  }
+  for(let e=1;e<eixos;e++){
+    for(const side of['LE','LD']){
+      for(let p=1;p<=nTF;p++){
+        const id=`TF_E${e}${e+1}_L${side}_P${p}`;
+        els[id]={id,type:'tf',axisFrom:e,axisTo:e+1,side,pos:p,
+          label:`T.Fech E${pad2(e)}-${pad2(e+1)} ${side} P${p}`,status:S.P,history:[]};
+      }
+    }
+  }
+  Object.values(els).forEach(el=>{el.addr=makeAddr(el);});
+  return els;
+}
+
+function calcStats(els){
+  const tot=Object.values(els).length;
+  const byS={};SORD.forEach(s=>{byS[s]=0;});
+  const byT={pilar:{},tesoura:{},tc:{},tf:{}};
+  SORD.forEach(s=>{Object.keys(byT).forEach(t=>{byT[t][s]=0;});});
+  Object.values(els).forEach(el=>{
+    byS[el.status]=(byS[el.status]||0)+1;
+    if(byT[el.type])byT[el.type][el.status]=(byT[el.type][el.status]||0)+1;
+  });
+  const done=byS[S.C]||0;
+  return{tot,done,pct:tot>0?Math.round(done/tot*100):0,byS,byT};
+}
+
+/* ═══════════════ BUSCA POR ENDEREÇO ═══════════════ */
+function BuscaEndereco({elements,onSelect}){
+  const[q,setQ]=useState('');
+  const[sugs,setSugs]=useState([]);
+  const ref=useRef(null);
+  const change=v=>{
+    setQ(v);
+    if(v.length<2){setSugs([]);return;}
+    const up=v.toUpperCase().replace(/\s/g,'');
+    const r=Object.values(elements)
+      .filter(el=>el.addr.replace(/\./g,'').toUpperCase().includes(up.replace(/\./g,''))
+              ||el.label.toUpperCase().includes(v.toUpperCase()))
+      .slice(0,10);
+    setSugs(r);
+  };
+  useEffect(()=>{
+    const h=e=>{if(ref.current&&!ref.current.contains(e.target))setSugs([]);};
+    document.addEventListener('mousedown',h);return()=>document.removeEventListener('mousedown',h);
+  },[]);
+  return(
+    <div ref={ref} className="relative">
+      <div className="flex items-center border-2 border-blue-200 rounded-xl bg-white overflow-hidden focus-within:border-blue-500">
+        <span className="pl-3 text-gray-400 text-lg">🔍</span>
+        <input value={q} onChange={e=>change(e.target.value)}
+          placeholder="Digite o endereço do elemento: TC.E01-02.A1.P03 ou P.E01.LE …"
+          className="flex-1 px-3 py-2.5 text-sm outline-none addr bg-transparent"
+          onKeyDown={e=>{if(e.key==='Escape'){setQ('');setSugs([]);}}}/>
+        {q&&<button onClick={()=>{setQ('');setSugs([]);}} className="px-3 text-gray-400 hover:text-gray-600">✕</button>}
+      </div>
+      {sugs.length>0&&(
+        <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-xl shadow-xl mt-1 overflow-hidden">
+          {sugs.map(el=>(
+            <button key={el.id} className="w-full text-left px-4 py-2.5 hover:bg-blue-50 flex items-center gap-3 border-b border-gray-50 last:border-0"
+              onClick={()=>{onSelect(el.id);setQ('');setSugs([]);}}>
+              <span className="ldot" style={{background:SCOR[el.status]}}/>
+              <span className="addr text-blue-700 text-sm">{el.addr}</span>
+              <span className="text-gray-400 text-xs ml-auto truncate max-w-[140px]">{SLAB[el.status]}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════ VISTA LATERAL 2D ═══════════════ */
+function VistaLateral({project,selectedId,onSelect}){
+  const cvRef=useRef(null);
+  const hitMap=useRef({});
+  const draw=useCallback(()=>{
+    const cv=cvRef.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height;
+    const{config:cfg,elements:els}=project;
+    const{eixos,aguas=2,nTC=5,nTF=4}=cfg;
+    const nSpans=eixos-1;
+    const PL=70,PR=20,PT=50,PB=60;
+    const aW=W-PL-PR,aH=H-PT-PB;
+    const spanW=nSpans>0?aW/nSpans:aW;
+    const zRoofH=aH*0.42,zWallH=aH*0.44,zGndH=aH*0.14;
+    const yRoofTop=PT,yWallTop=PT+zRoofH,yGndTop=yWallTop+zWallH,yGnd=PT+aH;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#F8FAFC';ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#EFF6FF';ctx.fillRect(PL,yRoofTop,aW,zRoofH);
+    ctx.fillStyle='#FFF7ED';ctx.fillRect(PL,yWallTop,aW,zWallH);
+    ctx.fillStyle='#F0FDF4';ctx.fillRect(PL,yGndTop,aW,zGndH);
+    ctx.save();ctx.translate(PL-10,yRoofTop+zRoofH/2);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle='#3B82F6';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('COBERTURA',0,0);ctx.restore();
+    ctx.save();ctx.translate(PL-10,yWallTop+zWallH/2);ctx.rotate(-Math.PI/2);
+    ctx.fillStyle='#F97316';ctx.font='bold 10px sans-serif';ctx.textAlign='center';
+    ctx.fillText('FECHAMENTO',0,0);ctx.restore();
+    ctx.strokeStyle='#E2E8F0';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(PL,yWallTop);ctx.lineTo(PL+aW,yWallTop);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(PL,yGndTop);ctx.lineTo(PL+aW,yGndTop);ctx.stroke();
+    if(nSpans>0){
+      const ridgeY=yRoofTop+5,eaveY=yWallTop;
+      ctx.strokeStyle='#CBD5E1';ctx.lineWidth=1.5;ctx.setLineDash([4,4]);
+      if(aguas===2){const midX=PL+aW/2;ctx.beginPath();ctx.moveTo(PL,eaveY);ctx.lineTo(midX,ridgeY);ctx.lineTo(PL+aW,eaveY);ctx.stroke();}
+      else{ctx.beginPath();ctx.moveTo(PL,eaveY);ctx.lineTo(PL+aW,ridgeY);ctx.stroke();}
+      ctx.setLineDash([]);
+    }
+    hitMap.current={};
+    const EL_H=8;
+    for(let e=1;e<eixos;e++){
+      const x0=PL+(e-1)*spanW,x1=x0+spanW,xMid=(x0+x1)/2;
+      const slopes=aguas===2?[1,2]:[1];
+      for(const a of slopes){
+        const xSlope0=aguas===2?(a===1?x0:xMid):x0;
+        const xSlope1=aguas===2?(a===1?xMid:x1):x1;
+        const tcList=Object.values(els).filter(el=>el.type==='tc'&&el.axisFrom===e&&el.agua===a&&el.vao===1);
+        if(!tcList.length)continue;
+        const rowH=Math.min(EL_H+2,(zRoofH-16)/tcList.length);
+        tcList.sort((a,b)=>a.pos-b.pos).forEach((el,idx)=>{
+          const y=yRoofTop+8+idx*rowH,color=SCOR[el.status],sel=el.id===selectedId;
+          ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+          ctx.moveTo(xSlope0+2,y+rowH/2);ctx.lineTo(xSlope1-2,y+rowH/2);ctx.stroke();
+          if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+          hitMap.current[el.id]={x:(xSlope0+xSlope1)/2,y:y+rowH/2,w:xSlope1-xSlope0-4,h:rowH+4};
+        });
+      }
+      const tfLE=Object.values(els).filter(el=>el.type==='tf'&&el.axisFrom===e&&el.side==='LE').sort((a,b)=>a.pos-b.pos);
+      const tfLD=Object.values(els).filter(el=>el.type==='tf'&&el.axisFrom===e&&el.side==='LD').sort((a,b)=>a.pos-b.pos);
+      const nTFE=Math.max(tfLE.length,1),rowHTF=Math.min(EL_H+2,(zWallH-16)/nTFE);
+      tfLE.forEach((el,idx)=>{
+        const y=yWallTop+8+idx*rowHTF,sel=el.id===selectedId,color=SCOR[el.status];
+        ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+        ctx.moveTo(x0+2,y+rowHTF/2);ctx.lineTo(xMid-2,y+rowHTF/2);ctx.stroke();
+        if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+        hitMap.current[el.id]={x:(x0+xMid)/2,y:y+rowHTF/2,w:xMid-x0-4,h:rowHTF+4};
+      });
+      tfLD.forEach((el,idx)=>{
+        const y=yWallTop+8+idx*rowHTF,sel=el.id===selectedId,color=SCOR[el.status];
+        ctx.beginPath();ctx.strokeStyle=sel?'#1D4ED8':color;ctx.lineWidth=sel?5:4;
+        ctx.moveTo(xMid+2,y+rowHTF/2);ctx.lineTo(x1-2,y+rowHTF/2);ctx.stroke();
+        if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.stroke();}
+        hitMap.current[el.id]={x:(xMid+x1)/2,y:y+rowHTF/2,w:x1-xMid-4,h:rowHTF+4};
+      });
+      ctx.fillStyle='#94A3B8';ctx.font='9px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}-E${e+1}`,xMid,yGnd+14);
+    }
+    const colW=Math.max(5,Math.min(10,spanW*0.08));
+    for(let e=1;e<=eixos;e++){
+      const cx=PL+(e-1)*spanW;
+      const pid=`P_E${e}_LE`,el=els[pid];
+      const color=el?SCOR[el.status]:'#9CA3AF',sel=el&&el.id===selectedId;
+      ctx.fillStyle=sel?'#1D4ED8':color;ctx.fillRect(cx-colW/2,yWallTop,colW,zWallH+zGndH);
+      if(sel){ctx.strokeStyle='#1D4ED8';ctx.lineWidth=2;ctx.strokeRect(cx-colW/2-1,yWallTop-1,colW+2,zWallH+zGndH+2);}
+      if(el)hitMap.current[el.id]={x:cx,y:yWallTop+zWallH/2,w:colW+12,h:zWallH};
+      ctx.fillStyle='#475569';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}`,cx,PT-8);
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#CBD5E1';ctx.lineWidth=0.8;
+      ctx.beginPath();ctx.moveTo(cx,PT);ctx.lineTo(cx,yGnd);ctx.stroke();ctx.setLineDash([]);
+    }
+    const legX=PL,legY=yGnd+28;
+    ctx.font='9px sans-serif';ctx.textAlign='left';
+    [{c:'#3B82F6',l:'TC = Terça Cobertura'},{c:'#F97316',l:'TF = Terça Fechamento'},{c:'#6B7280',l:'P = Pilar'}]
+      .forEach((it,i)=>{const ix=legX+i*(aW/3);ctx.fillStyle=it.c;ctx.fillRect(ix,legY-8,18,8);ctx.fillStyle='#64748B';ctx.fillText(it.l,ix+22,legY);});
+  },[project,selectedId]);
+  useEffect(()=>{draw();},[draw]);
+  const getXY=e=>{const r=cvRef.current.getBoundingClientRect();return[(e.clientX-r.left)*cvRef.current.width/r.width,(e.clientY-r.top)*cvRef.current.height/r.height];};
+  const hit=(cx,cy)=>{
+    let best=null,bd=16;
+    for(const[id,h] of Object.entries(hitMap.current)){
+      if(Math.abs(cy-h.y)<(h.h||10)/2+5&&Math.abs(cx-h.x)<(h.w||20)/2+5){const d=Math.hypot(cx-h.x,cy-h.y);if(d<bd){bd=d;best=id;}}
+    }
+    onSelect(best);
+  };
+  return(
+    <div>
+      <canvas ref={cvRef} width={1000} height={520}
+        style={{width:'100%',height:'auto',cursor:'pointer',borderRadius:8,border:'1px solid #E2E8F0'}}
+        onClick={e=>{const[x,y]=getXY(e);hit(x,y);}}
+        onTouchEnd={e=>{e.preventDefault();const t=e.changedTouches[0];const[x,y]=getXY(t);hit(x,y);}}/>
+      <div className="flex gap-4 mt-2 text-xs text-gray-500 justify-center flex-wrap">
+        <span>🔵 Zona azul = Terças de Cobertura</span>
+        <span>🟡 Zona amarela = Terças de Fechamento</span>
+        <span>Clique/toque em qualquer linha ou pilar para selecionar</span>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ PLANTA 2D ═══════════════ */
+function Planta2D({project,selectedId,onSelect}){
+  const cvRef=useRef(null);
+  const hitMap=useRef({});
+  const draw=useCallback(()=>{
+    const cv=cvRef.current;if(!cv)return;
+    const ctx=cv.getContext('2d');
+    const W=cv.width,H=cv.height;
+    const{config:cfg,elements:els}=project;
+    const{eixos,vaos=1}=cfg;
+    const PL=55,PR=20,PT=45,PB=45;
+    const aW=W-PL-PR,aH=H-PT-PB;
+    const sX=eixos>1?aW/(eixos-1):aW,sY=aH/vaos;
+    ctx.clearRect(0,0,W,H);ctx.fillStyle='#F8FAFC';ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='#374151';ctx.lineWidth=2;ctx.strokeRect(PL,PT,aW,aH);
+    hitMap.current={};
+    for(let e=1;e<=eixos;e++){
+      const x=PL+(e-1)*sX;
+      ctx.setLineDash([4,4]);ctx.strokeStyle='#CBD5E1';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(x,PT);ctx.lineTo(x,PT+aH);ctx.stroke();ctx.setLineDash([]);
+      ctx.fillStyle='#475569';ctx.font='bold 11px sans-serif';ctx.textAlign='center';
+      ctx.fillText(`E${e}`,x,PT-8);
+    }
+    Object.values(els).filter(e=>e.type==='tesoura').forEach(el=>{
+      const x=PL+(el.axis-1)*sX,y0=PT+(el.vao-1)*sY,y1=y0+sY,sel=el.id===selectedId;
+      ctx.beginPath();ctx.setLineDash([5,3]);
+      ctx.strokeStyle=sel?'#1D4ED8':SCOR[el.status];ctx.lineWidth=sel?4:3;
+      ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();ctx.setLineDash([]);
+      if(sel){ctx.strokeStyle='white';ctx.lineWidth=1.5;ctx.setLineDash([5,3]);ctx.beginPath();ctx.moveTo(x,y0);ctx.lineTo(x,y1);ctx.stroke();ctx.setLineDash([]);}
+      hitMap.current[el.id]={x,y:(y0+y1)/2,w:12,h:y1-y0};
+    });
+    const R=Math.max(7,Math.min(11,sX*0.15));
+    Object.values(els).filter(e=>e.type==='pilar').forEach(el=>{
+      const x=PL+(el.axis-1)*sX,y=PT+el.linha*sY,sel=el.id===selectedId;
+      if(sel){ctx.beginPath();ctx.arc(x,y,R+4,0,Math.PI*2);ctx.fillStyle='#BFDBFE';ctx.fill();}
+      ctx.beginPath();ctx.arc(x,y,R,0,Math.PI*2);
+      ctx.fillStyle=SCOR[el.status];ctx.fill();
+      ctx.strokeStyle=sel?'#1D4ED8':'#374151';ctx.lineWidth=sel?2.5:1.5;ctx.stroke();
+      hitMap.current[el.id]={x,y,r:R+6};
+    });
+    ctx.fillStyle='#6B7280';ctx.font='10px sans-serif';ctx.textAlign='right';
+    ctx.fillText('L.Esq.',PL-4,PT+6);ctx.fillText('L.Dir.',PL-4,PT+aH+4);
+  },[project,selectedId]);
+  useEffect(()=>{draw();},[draw]);
+  const getXY=e=>{const r=cvRef.current.getBoundingClientRect();return[(e.clientX-r.left)*cvRef.current.width/r.width,(e.clientY-r.top)*cvRef.current.height/r.height];};
+  const hit=(cx,cy)=>{
+    let best=null,bd=18;
+    for(const[id,h] of Object.entries(hitMap.current)){
+      if(h.r){const d=Math.hypot(cx-h.x,cy-h.y);if(d<=h.r&&d<bd){bd=d;best=id;}}
+      else if(Math.abs(cy-h.y)<(h.h||10)/2+5&&Math.abs(cx-h.x)<(h.w||10)/2+5){best=id;break;}
+    }
+    onSelect(best);
+  };
+  return(
+    <div>
+      <canvas ref={cvRef} width={900} height={300}
+        style={{width:'100%',height:'auto',cursor:'pointer',borderRadius:8,border:'1px solid #E2E8F0'}}
+        onClick={e=>{const[x,y]=getXY(e);hit(x,y);}}
+        onTouchEnd={e=>{e.preventDefault();const t=e.changedTouches[0];const[x,y]=getXY(t);hit(x,y);}}/>
+      <div className="mt-1 text-xs text-gray-400 text-center">Círculos = Pilares · Linhas tracejadas = Tesouras · Clique para selecionar</div>
+    </div>
+  );
+}
+
+/* ═══════════════ VISTA 3D — GALPÃO REALISTA (TELHAS) ═══════════════ */
+function Vista3D({project}){
+  const mountRef=useRef(null);
+  const threeRef=useRef(null);
+  const cfg=project.config||{};
+  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}`;
+
+  const buildScene=useCallback(()=>{
+    const container=mountRef.current;
+    if(!container||!window.THREE)return;
+    const{THREE}=window;
+    const W=container.clientWidth||600,H=440;
+    if(threeRef.current){threeRef.current.cleanup&&threeRef.current.cleanup();threeRef.current.renderer.dispose();if(container.contains(threeRef.current.renderer.domElement))container.removeChild(threeRef.current.renderer.domElement);}
+    const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
+    renderer.setSize(W,H);renderer.setPixelRatio(window.devicePixelRatio);
+    container.appendChild(renderer.domElement);
+    const scene=new THREE.Scene();scene.background=new THREE.Color(0xEAF2FB);
+    const camera=new THREE.PerspectiveCamera(48,W/H,0.1,3000);
+    scene.add(new THREE.AmbientLight(0xffffff,0.82));
+    const dl=new THREE.DirectionalLight(0xffffff,0.5);dl.position.set(1,2,1.3);scene.add(dl);
+    const dl2=new THREE.DirectionalLight(0xffffff,0.22);dl2.position.set(-1.2,1,-1);scene.add(dl2);
+    const controls=new THREE.OrbitControls(camera,renderer.domElement);
+    controls.enableDamping=false;controls.minDistance=4;controls.maxDistance=600;controls.maxPolarAngle=Math.PI/2+0.04;
+
+    // Dimensões (reaproveita config; vãos de telha = eixos-1)
+    const eixos=+cfg.eixos||2, NB=Math.max(1,eixos-1);
+    const spX=parseFloat(cfg.vaoComprimento)||6;
+    const spZ=parseFloat(cfg.largura)||18;
+    const hC=parseFloat(cfg.alturaColuna)||8, hR=hC*0.35;
+    const L=NB*spX, X0=-L/2, zL=-spZ/2, zR=spZ/2;
+    const lantW=Math.max(1.2,spZ*0.16);
+    const lantSideH=Math.max(0.8,hR*0.55), lantCap=Math.max(0.6,hR*0.42);
+    const yEave=hC, yRidge=hC+hR, yLantTop=yRidge+lantSideH, yLantRidge=yLantTop+lantCap;
+    const hexN=h=>parseInt(h.slice(1),16);
+    const AZUL=hexN(COR_TELHA_AZUL), METAL=hexN(COR_METALICA), REDE=hexN(COR_REDE);
+    const NF=(project.telhas&&+project.telhas.nFrontal)||NF_DEFAULT;
+    const lFrom=1+LANT_MARGIN, lTo=NB-LANT_MARGIN, xL0=X0+(lFrom-1)*spX, xL1=X0+lTo*spX; // extensão do lanternin (recuado 1 vão/ponta)
+
+    // Chão + enquadramento
+    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(L*2.4,spZ*3.4),new THREE.MeshLambertMaterial({color:0xDDE7D8}));
+    gnd.rotation.x=-Math.PI/2;gnd.position.y=-0.02;scene.add(gnd);
+    const diag=Math.max(L,spZ);
+    camera.position.set(L*0.42+spZ*0.7, hC*1.5+diag*0.4, spZ*1.5+diag*0.22);
+    controls.target.set(0,hC*0.55,0);
+
+    const stripMap={}, frontMap={};
+    // telha inclinada (cobertura/lanternin) — largura em X
+    const ramp=(x,w,z0,y0,z1,y1)=>{
+      const dz=z1-z0,dy=y1-y0,len=Math.hypot(dz,dy);
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(w,len),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.x=Math.atan2(dz,dy);m.position.set(x,(y0+y1)/2,(z0+z1)/2);scene.add(m);return m;
+    };
+    // telha vertical de parede — largura em X, no plano Z=const
+    const wall=(x,w,z,y0,y1)=>{
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(w,y1-y0),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.position.set(x,(y0+y1)/2,z);scene.add(m);return m;
+    };
+    const sw=spX/TILES_PER_BAY, gap=0.06;
+    for(let b=1;b<=NB;b++){
+      const xb0=X0+(b-1)*spX;
+      for(let j=0;j<TILES_PER_BAY;j++){
+        const xc=xb0+(j+0.5)*sw, w=sw*(1-gap);
+        stripMap[`cobEsq_${b}_${j}`]=ramp(xc,w, zL,yEave, -lantW/2,yRidge);
+        stripMap[`cobDir_${b}_${j}`]=ramp(xc,w, zR,yEave,  lantW/2,yRidge);
+        // lanternin: 1 telha cobre as duas águas pequenas do monitor (só nos vãos centrais)
+        if(hasLant(cfg,b)){
+          stripMap[`lant_${b}_${j}`] =ramp(xc,w, -lantW/2,yLantTop, 0,yLantRidge);
+          stripMap[`lant2_${b}_${j}`]=ramp(xc,w,  lantW/2,yLantTop, 0,yLantRidge);
+        }
+        stripMap[`fechDir_${b}_${j}`]=wall(xc,w, zL, 0.05, hC);  // fechamento (azul) na parede esquerda
+      }
+    }
+    // Lanternin recuado 1 vão/ponta: clerestório (janelas) + empenas de ponta + tampa nos vãos das pontas
+    if(lTo>=lFrom){
+      [-lantW/2,lantW/2].forEach(zc=>{
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(xL1-xL0,lantSideH),new THREE.MeshLambertMaterial({color:0x2B3A4A,transparent:true,opacity:0.6,side:THREE.DoubleSide}));
+        m.position.set((xL0+xL1)/2,(yRidge+yLantTop)/2,zc);scene.add(m);
+      });
+      [xL0,xL1].forEach(x=>{  // empena triangular fechando a ponta do monitor
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,yRidge,-lantW/2),new THREE.Vector3(x,yRidge,lantW/2),new THREE.Vector3(x,yLantRidge,0)]);
+        g.setIndex([0,1,2]);g.computeVertexNormals();
+        scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide})));
+      });
+    }
+    for(let b=1;b<=NB;b++){  // tampa plana na cumeeira dos vãos sem lanternin (fecha a fresta)
+      if(hasLant(cfg,b))continue;
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.99,lantW),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.x=-Math.PI/2;m.position.set(X0+(b-1)*spX+spX/2,yRidge,0);scene.add(m);
+    }
+    // Parede DIREITA (Z=zR): metálica, com aberturas de docas (g.8/h.9) — sem avanço
+    const dockBays=new Set([Math.round(NB*0.28),Math.round(NB*0.55),NB]);  // última doca no último vão
+    for(let b=1;b<=NB;b++){
+      if(dockBays.has(b))continue;
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.98,hC),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.position.set(X0+(b-1)*spX+spX/2,hC/2,zR);scene.add(m);
+    }
+    // Oitão frontal (X0): telhas substituídas, altura acompanha a empena. Fundo (X0+L) fica aberto. Docas inalteradas.
+    const gY=z=>{const az=Math.min(spZ/2,Math.abs(z));return yEave+(yRidge+lantCap*0.6-yEave)*(1-az/(spZ/2));};
+    const fW=spZ/NF, yBase=hC*0.6;
+    for(let j=0;j<NF;j++){
+      const zc=zL+(j+0.5)*fW, yTop=gY(zc), h=Math.max(0.4,yTop-yBase);
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(fW*0.94,h),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.y=Math.PI/2;m.position.set(X0-0.06,(yBase+yTop)/2,zc);scene.add(m);frontMap[j]=m;
+    }
+    // Contornos (definição)
+    const line=(a,b,c=0x334155)=>{const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a),new THREE.Vector3(...b)]);scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:c})));};
+    line([X0,yEave,zL],[X0+L,yEave,zL]); line([X0,yEave,zR],[X0+L,yEave,zR]);
+    line([X0,yRidge,-lantW/2],[X0+L,yRidge,-lantW/2]); line([X0,yRidge,lantW/2],[X0+L,yRidge,lantW/2]);
+    if(lTo>=lFrom){
+      line([xL0,yLantTop,-lantW/2],[xL1,yLantTop,-lantW/2]); line([xL0,yLantTop,lantW/2],[xL1,yLantTop,lantW/2]);
+      line([xL0,yLantRidge,0],[xL1,yLantRidge,0]);
+    }
+    [[X0,zL],[X0,zR],[X0+L,zL],[X0+L,zR]].forEach(([x,z])=>line([x,0,z],[x,yEave,z]));
+
+    // Rede (c.4) — dinâmica, esticada com barriga
+    let netMeshes=[];
+    const clearNets=()=>{netMeshes.forEach(m=>{scene.remove(m);m.geometry.dispose();m.material.dispose();});netMeshes=[];};
+    const addNet=b=>{
+      const xb0=X0+(b-1)*spX, xb1=xb0+spX, segX=5,segZ=9, sag=Math.min(1.4,spX*0.15+0.5), yT=yEave-0.4;
+      const Y=(i,j)=>yT-sag*(1-Math.pow(2*i/segX-1,2))*(1-Math.pow(2*j/segZ-1,2));
+      const PX=i=>xb0+(xb1-xb0)*i/segX, PZ=j=>zL+(zR-zL)*j/segZ;
+      const verts=[];
+      for(let i=0;i<segX;i++)for(let j=0;j<segZ;j++){
+        const ax=PX(i),bx=PX(i+1),az=PZ(j),bz=PZ(j+1);
+        verts.push(ax,Y(i,j),az, bx,Y(i+1,j),az, bx,Y(i+1,j+1),bz, ax,Y(i,j),az, bx,Y(i+1,j+1),bz, ax,Y(i,j+1),bz);
+      }
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();
+      const surf=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:REDE,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false}));
+      scene.add(surf);netMeshes.push(surf);
+      const lp=[];
+      for(let i=0;i<=segX;i++)for(let j=0;j<segZ;j++)lp.push(PX(i),Y(i,j),PZ(j), PX(i),Y(i,j+1),PZ(j+1));
+      for(let j=0;j<=segZ;j++)for(let i=0;i<segX;i++)lp.push(PX(i),Y(i,j),PZ(j), PX(i+1),Y(i+1,j),PZ(j));
+      const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+      const lines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:REDE}));scene.add(lines);netMeshes.push(lines);
+    };
+
+    const paint=(m,on)=>{if(!m)return;m.material.color.setHex(on?AZUL:METAL);m.material.transparent=!on;m.material.opacity=on?1:0.82;};
+    const applyTelhas=telhas=>{
+      const t=telhas||{};
+      for(let b=1;b<=NB;b++){
+        const bd=ensureBay(t,b);
+        for(let j=0;j<TILES_PER_BAY;j++){
+          paint(stripMap[`cobEsq_${b}_${j}`], j<bd.cobEsq);
+          paint(stripMap[`cobDir_${b}_${j}`], j<bd.cobDir);
+          paint(stripMap[`fechDir_${b}_${j}`],j<bd.fechDir);
+          paint(stripMap[`lant_${b}_${j}`],  j<bd.lant);
+          paint(stripMap[`lant2_${b}_${j}`], j<bd.lant);
+        }
+      }
+      const fr=Math.max(0,Math.min(NF,+t.frontal||0));
+      Object.keys(frontMap).forEach(j=>paint(frontMap[j],+j<fr));
+      clearNets();
+      for(let b=1;b<=NB;b++)if(ensureBay(t,b).rede)addNet(b);
+      renderer.render(scene,camera);
+    };
+    const render=()=>renderer.render(scene,camera);
+    applyTelhas(project.telhas);          // já renderiza ao final
+    controls.addEventListener('change',render);  // render sob demanda (sem loop contínuo)
+    render();
+    const onResize=()=>{const nW=container.clientWidth;camera.aspect=nW/H;camera.updateProjectionMatrix();renderer.setSize(nW,H);render();};
+    window.addEventListener('resize',onResize);
+    threeRef.current={renderer,scene,camera,controls,applyTelhas,cleanup:()=>{controls.removeEventListener('change',render);window.removeEventListener('resize',onResize);clearNets();controls.dispose();}};
+  },[sig]);
+
+  useEffect(()=>{buildScene();return()=>{if(threeRef.current&&threeRef.current.cleanup)threeRef.current.cleanup();};},[buildScene]);
+  useEffect(()=>{if(threeRef.current&&threeRef.current.applyTelhas)threeRef.current.applyTelhas(project.telhas);},[project.telhas]);
+
+  return(
+    <div>
+      <div ref={mountRef} style={{width:'100%',borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0',background:'#EAF2FB'}}/>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 justify-center text-xs text-gray-500">
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_TELHA_AZUL,borderRadius:2,display:'inline-block'}}/>Telha instalada · RAL 5003</span>
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_METALICA,borderRadius:2,display:'inline-block'}}/>Metálica / pendente</span>
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_REDE,borderRadius:2,display:'inline-block'}}/>Rede instalada</span>
+      </div>
+      <div className="mt-1 text-xs text-gray-400 text-center">Arraste para girar · Scroll para zoom · Clique direito para mover</div>
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL DE ELEMENTO ═══════════════ */
+function ModalElemento({element,onClose,onUpdate,canEdit=true}){
+  const[op,setOp]=useState('');
+  const save=s=>{
+    if(!op.trim()){alert('Informe o nome do responsável.');return;}
+    onUpdate(element.id,s,{ts:new Date().toISOString(),operator:op.trim(),from:element.status,to:s});
+    onClose();
+  };
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-md sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[90vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-start mb-3">
+          <div>
+            <span className="text-xs font-bold uppercase text-gray-400 tracking-widest">{TLAB[element.type]}</span>
+            <h3 className="text-lg font-bold text-gray-800">{element.label}</h3>
+            <div className="mt-1 px-2 py-1 bg-blue-50 rounded-lg inline-block">
+              <span className="addr text-blue-700 text-sm font-bold">{element.addr}</span>
+            </div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-2xl leading-none ml-3">×</button>
+        </div>
+        <div className="mb-4 p-3 rounded-xl flex items-center gap-2" style={{background:SCOR[element.status]+'22'}}>
+          <span className="ldot" style={{background:SCOR[element.status]}}/>
+          <span className="font-semibold text-gray-700">{SLAB[element.status]}</span>
+        </div>
+        {canEdit?(
+          <>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Responsável</label>
+            <input value={op} onChange={e=>setOp(e.target.value)} placeholder="Nome do encarregado / operador"
+              autoFocus className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+            <div className="space-y-2">
+              {SORD.map(s=>(
+                <button key={s} onClick={()=>save(s)} disabled={s===element.status}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl border-2 font-medium text-sm transition-all ${s===element.status?'border-gray-100 bg-gray-50 cursor-not-allowed opacity-60':'border-gray-100 hover:border-blue-300 hover:bg-blue-50 bg-white'}`}>
+                  <span className="ldot" style={{background:SCOR[s]}}/>{SLAB[s]}
+                  {s===element.status&&<span className="ml-auto text-xs text-gray-400">✓ Atual</span>}
+                </button>
+              ))}
+            </div>
+          </>
+        ):(
+          <div className="bg-blue-50 rounded-xl p-3 text-sm text-blue-700 text-center">
+            👁️ Modo visualização — apenas leitura
+          </div>
+        )}
+        {element.history?.length>0&&(
+          <div className="mt-4 pt-3 border-t">
+            <p className="text-xs font-bold text-gray-400 mb-2 uppercase">Últimos apontamentos</p>
+            {[...toArr(element.history)].reverse().slice(0,5).map((h,i)=>(
+              <div key={i} className="text-xs text-gray-600 mb-1 flex gap-2">
+                <span className="text-gray-400 shrink-0">{new Date(h.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+                <span className="font-medium">{h.operator}</span>
+                <span style={{color:SCOR[h.to]}} className="font-bold">{SLAB[h.to]}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ APONTAMENTO EM LOTE ═══════════════ */
+function ApontamentoLote({project,onUpdate}){
+  const[type,setType]=useState('tc');
+  const[af,setAf]=useState(1);
+  const[at,setAt]=useState(5);
+  const[side,setSide]=useState('todos');
+  const[ns,setNs]=useState(S.L);
+  const[op,setOp]=useState('');
+  const{eixos}=project.config;
+  const apply=()=>{
+    if(!op.trim()){alert('Informe o nome do responsável.');return;}
+    const ts=new Date().toISOString(),upd={};
+    Object.values(project.elements).forEach(el=>{
+      if(el.type!==type)return;
+      const ax=el.type==='pilar'?el.axis:el.axisFrom;
+      if(ax<af||ax>at)return;
+      if(side!=='todos'){
+        if(el.type==='tc'&&String(el.agua)!==side)return;
+        if(el.type==='tf'&&el.side!==side)return;
+        if(el.type==='pilar'&&el.side!==side)return;
+      }
+      upd[el.id]={status:ns,entry:{ts,operator:op.trim(),from:el.status,to:ns}};
+    });
+    const n=Object.keys(upd).length;
+    if(n===0){alert('Nenhum elemento com esses filtros.');return;}
+    if(window.confirm(`Atualizar ${n} elemento(s) para "${SLAB[ns]}"?`))onUpdate(upd);
+  };
+  const sideOpts={pilar:[{v:'todos',l:'Todos'},{v:'LE',l:'L.Esquerda'},{v:'LD',l:'L.Direita'}],tesoura:[{v:'todos',l:'Todos'}],tc:[{v:'todos',l:'Todas'},{v:'1',l:'Água 1'},{v:'2',l:'Água 2'}],tf:[{v:'todos',l:'Ambas'},{v:'LE',l:'L.Esquerda'},{v:'LD',l:'L.Direita'}]};
+  return(
+    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+      <p className="text-sm font-bold text-amber-800 mb-3">⚡ Apontamento em Lote</p>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-3">
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Tipo</label>
+          <select value={type} onChange={e=>setType(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            <option value="pilar">Pilares</option><option value="tesoura">Tesouras</option>
+            <option value="tc">Terças Cob.</option><option value="tf">Terças Fech.</option>
+          </select></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Eixo início</label>
+          <input type="number" value={af} min={1} max={eixos} onChange={e=>setAf(+e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"/></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Eixo fim</label>
+          <input type="number" value={at} min={1} max={eixos} onChange={e=>setAt(+e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm"/></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Lado/Água</label>
+          <select value={side} onChange={e=>setSide(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            {(sideOpts[type]||sideOpts.pilar).map(o=><option key={o.v} value={o.v}>{o.l}</option>)}
+          </select></div>
+        <div><label className="text-xs text-gray-600 font-medium block mb-1">Status</label>
+          <select value={ns} onChange={e=>setNs(e.target.value)} className="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-sm">
+            {SORD.map(s=><option key={s} value={s}>{SLAB[s]}</option>)}
+          </select></div>
+      </div>
+      <div className="flex gap-2">
+        <input value={op} onChange={e=>setOp(e.target.value)} placeholder="Responsável pelo apontamento" className="flex-1 border border-gray-300 rounded-lg px-3 py-2 text-sm"/>
+        <button onClick={apply} className="px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-bold hover:bg-amber-700 whitespace-nowrap">Aplicar Lote</button>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ HISTÓRICO ═══════════════ */
+function Historico({elements}){
+  const hist=useMemo(()=>{
+    const r=[];
+    Object.values(elements).forEach(el=>toArr(el.history).forEach(h=>r.push({...h,elLabel:el.label,elAddr:el.addr,elType:el.type})));
+    return r.sort((a,b)=>b.ts.localeCompare(a.ts)).slice(0,150);
+  },[elements]);
+  if(!hist.length)return(<div className="text-center text-gray-400 py-10"><div className="text-4xl mb-2">📋</div><p>Nenhum apontamento registrado ainda</p></div>);
+  return(
+    <div className="space-y-1.5">
+      {hist.map((h,i)=>(
+        <div key={i} className="flex gap-3 items-start p-3 bg-white rounded-xl border border-gray-100">
+          <span className="ldot mt-0.5" style={{background:SCOR[h.to]}}/>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-start gap-2">
+              <span className="addr text-blue-600 text-xs font-bold">{h.elAddr}</span>
+              <span className="text-xs text-gray-400 shrink-0">{new Date(h.ts).toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span>
+            </div>
+            <div className="text-xs text-gray-500 mt-0.5">
+              <span className="font-semibold text-gray-700">{h.operator}</span>
+              <span className="mx-1">→</span>
+              <span style={{color:SCOR[h.to]}} className="font-bold">{SLAB[h.to]}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+/* ═══════════════ TELHAS — UI ═══════════════ */
+function Bar({pct,c}){
+  return(
+    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all" style={{width:`${Math.max(0,Math.min(100,pct))}%`,background:c}}/>
+    </div>
+  );
+}
+function Stepper({val,max,onChange}){
+  return(
+    <div className="flex items-center gap-1 justify-center">
+      <button onClick={()=>onChange(Math.max(0,val-1))} disabled={val<=0}
+        className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold text-lg leading-none disabled:opacity-30 hover:bg-gray-200 flex items-center justify-center select-none">−</button>
+      <span className={`w-9 text-center font-bold tabular-nums ${val>=max?'text-green-600':val>0?'text-blue-700':'text-gray-300'}`}>{val}</span>
+      <button onClick={()=>onChange(Math.min(max,val+1))} disabled={val>=max}
+        className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold text-lg leading-none disabled:opacity-30 hover:bg-gray-200 flex items-center justify-center select-none">+</button>
+    </div>
+  );
+}
+function TelhasIndicadores({info}){
+  const locs=[
+    {k:'cobEsq',l:'Cobertura Esq.',c:'#3B82F6'},
+    {k:'cobDir',l:'Cobertura Dir.',c:'#2563EB'},
+    {k:'lant',l:'Lanternin',c:'#8B5CF6'},
+    {k:'fechDir',l:'Fechamento Dir.',c:'#0EA5E9'},
+    {k:'frontal',l:'Frontal',c:'#6366F1'},
+  ];
+  return(
+    <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">🧱 Instalação de Telhas</p>
+          <p className="text-xs text-gray-400 mt-0.5">{info.totInst}/{info.totTelhas} telhas · ponderado por tamanho</p>
+        </div>
+        <div className="text-right leading-none">
+          <div className="text-3xl font-extrabold" style={{color:COR_TELHA_AZUL}}>{info.geral}%</div>
+          <div className="text-xs text-gray-400 mt-0.5">avanço geral</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+        {locs.map(L=>(
+          <div key={L.k}>
+            <div className="flex justify-between text-xs mb-0.5"><span className="text-gray-600 font-medium truncate">{L.l}</span><span className="font-bold ml-1" style={{color:L.c}}>{info.pctLoc[L.k]}%</span></div>
+            <Bar pct={info.pctLoc[L.k]} c={L.c}/>
+            <p className="text-xs text-gray-400 mt-0.5">{info.loc[L.k].i}/{info.loc[L.k].t}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function TabTelhas({project,canEdit,onUpdate}){
+  const info=useMemo(()=>calcTelhas(project),[project.telhas,project.config]);
+  const NB=info.NB, NF=info.NF;
+  const setBay=(b,patch)=>{
+    const telhas=project.telhas||{};
+    const bays={...(telhas.bays||{})};
+    bays[b]={...ensureBay(telhas,b),...patch};
+    onUpdate({...project,telhas:{...telhas,bays}});
+  };
+  const setFrontal=v=>{
+    const telhas=project.telhas||{};
+    onUpdate({...project,telhas:{...telhas,frontal:Math.max(0,Math.min(NF,v)),nFrontal:NF}});
+  };
+  const aplicarTodos=(k,v)=>{
+    const telhas=project.telhas||{};
+    const bays={...(telhas.bays||{})};
+    for(let b=1;b<=NB;b++){
+      if(k==='lant'&&!hasLant(project.config,b))continue;   // lanternin não cobre as pontas
+      bays[b]={...ensureBay(telhas,b),[k]:v};
+    }
+    onUpdate({...project,telhas:{...telhas,bays}});
+  };
+  const zerar=()=>{
+    if(!window.confirm('Zerar a contagem de telhas de todos os vãos? (a rede é mantida)'))return;
+    const telhas=project.telhas||{};
+    const bays={};
+    for(let b=1;b<=NB;b++)bays[b]={cobEsq:0,cobDir:0,lant:0,fechDir:0,rede:ensureBay(telhas,b).rede};
+    onUpdate({...project,telhas:{...telhas,bays,frontal:0}});
+  };
+  return(
+    <div className="space-y-4">
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-sm font-bold text-indigo-800">🔷 Oitão Frontal</p>
+          <p className="text-xs text-indigo-500">{info.loc.frontal.i}/{NF} telhas · {info.pctLoc.frontal}%</p>
+        </div>
+        {canEdit
+          ? <Stepper val={info.loc.frontal.i} max={NF} onChange={setFrontal}/>
+          : <div className="w-40"><Bar pct={info.pctLoc.frontal} c="#6366F1"/></div>}
+      </div>
+
+      {canEdit&&(
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <span className="text-gray-500 font-medium mr-1">Preencher todos os vãos:</span>
+          {TELHA_LOCS.map(L=>(
+            <button key={L.k} onClick={()=>aplicarTodos(L.k,TILES_PER_BAY)}
+              className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 font-medium text-gray-700">{L.l} ✓</button>
+          ))}
+          <button onClick={zerar} className="px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium ml-auto">Zerar telhas</button>
+        </div>
+      )}
+
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="w-full text-sm" style={{borderCollapse:'separate',borderSpacing:'0 5px'}}>
+          <thead>
+            <tr className="text-xs text-gray-500">
+              <th className="text-left px-2 font-semibold">Vão</th>
+              {TELHA_LOCS.map(L=><th key={L.k} className="px-2 text-center font-semibold whitespace-nowrap" style={{color:L.c}}>{L.l}</th>)}
+              <th className="px-2 text-center font-semibold">Rede</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({length:NB},(_,i)=>i+1).map(b=>{
+              const bd=ensureBay(project.telhas||{},b);
+              const lantOk=hasLant(project.config,b);
+              const full=bd.cobEsq>=7&&bd.cobDir>=7&&bd.fechDir>=7&&(!lantOk||bd.lant>=7);
+              return(
+                <tr key={b} className={full?'bg-green-50':'bg-white'} style={{boxShadow:'0 1px 0 #F1F5F9'}}>
+                  <td className="px-2 py-1.5 font-mono font-bold text-gray-600 whitespace-nowrap">E{pad2(b)}–E{pad2(b+1)}</td>
+                  {TELHA_LOCS.map(L=>{
+                    const naLant=L.k==='lant'&&!lantOk;
+                    return(
+                    <td key={L.k} className="px-2 py-1.5 text-center">
+                      {naLant
+                        ? <span className="text-gray-300 text-xs" title="Sem lanternin neste vão">—</span>
+                        : canEdit
+                          ? <Stepper val={bd[L.k]} max={TILES_PER_BAY} onChange={v=>setBay(b,{[L.k]:v})}/>
+                          : <span className={`font-bold tabular-nums ${bd[L.k]>=7?'text-green-600':bd[L.k]>0?'text-blue-700':'text-gray-300'}`}>{bd[L.k]}/7</span>}
+                    </td>
+                    );
+                  })}
+                  <td className="px-2 py-1.5 text-center">
+                    {canEdit
+                      ? <button onClick={()=>setBay(b,{rede:!bd.rede})}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${bd.rede?'bg-green-500 text-white shadow-sm':'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                          {bd.rede?'🕸️ Sim':'—'}
+                        </button>
+                      : <span className={bd.rede?'text-lg':'text-gray-300'}>{bd.rede?'🕸️':'—'}</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-gray-400 text-center">
+        {canEdit?'Cada vão tem 7 telhas por local · toque em − / + para lançar as telhas instaladas':'👁️ Modo visualização — somente leitura'}
+      </p>
+    </div>
+  );
+}
+
+/* ═══════════════ CURVA S ═══════════════ */
+function TabCurvaS({project,obraCode,canEdit}){
+  const[snaps,setSnaps]=useState({});
+  const[saving,setSaving]=useState(false);
+  const[msg,setMsg]=useState('');
+  const[modalOpen,setModalOpen]=useState(false);
+  const[modalVal,setModalVal]=useState('');
+  const today=new Date().toISOString().split('T')[0];
+
+  useEffect(()=>{
+    if(!db||!obraCode)return;
+    const ref=db.ref(`/obras/${obraCode}/snapshots`);
+    ref.on('value',s=>setSnaps(s.val()||{}));
+    return()=>ref.off('value');
+  },[obraCode]);
+
+  const elPct=useMemo(()=>{
+    const els=Object.values(project.elements||{});
+    if(!els.length)return 0;
+    const done=els.filter(e=>e.status==='completo').length;
+    return Math.round(done/els.length*10000)/100;
+  },[project.elements]);
+
+  const abrirModal=()=>{setModalVal(elPct.toFixed(2));setModalOpen(true);};
+
+  const salvar=async()=>{
+    const raw=(modalVal||'').replace(',','.');
+    const v=parseFloat(raw);
+    if(isNaN(v)||v<0||v>100){setMsg('% inválido (0-100)');return;}
+    setSaving(true);
+    await db.ref(`/obras/${obraCode}/snapshots/${today}`).set({pct:v,ts:Date.now()});
+    setSaving(false);setMsg('Registrado ✓');setModalOpen(false);setTimeout(()=>setMsg(''),2500);
+  };
+
+  const TASKS=[
+    {w:1, s:'2026-05-11',e:'2026-05-11'},
+    {w:8, s:'2026-05-15',e:'2026-07-07'},
+    {w:64,s:'2026-05-19',e:'2026-07-16'},
+    {w:20,s:'2026-07-08',e:'2026-08-20'},
+    {w:7, s:'2026-08-21',e:'2026-08-26'},
+    {w:2, s:'2026-08-27',e:'2026-08-31'},
+  ];
+  const START=new Date('2026-05-11');
+  const END=new Date('2026-08-31');
+  const NDAYS=Math.ceil((END-START)/86400000)+1;
+
+  const planned=useMemo(()=>{
+    const raw=[];
+    for(let d=0;d<NDAYS;d++){
+      const dt=new Date(START.getTime()+d*86400000);
+      let p=0;
+      for(const t of TASKS){
+        const ts=new Date(t.s),te=new Date(t.e);
+        if(dt>=ts&&dt<=te) p+=t.w/((te-ts)/86400000+1);
+      }
+      raw.push(p);
+    }
+    const tot=raw.reduce((a,b)=>a+b,0),fac=100/tot;
+    let sum=0;
+    return raw.map(p=>{sum+=p*fac;return Math.round(sum*100)/100;});
+  },[]);
+
+  const realPts=useMemo(()=>Object.entries(snaps).map(([d,v])=>({date:d,pct:v.pct})).sort((a,b)=>a.date.localeCompare(b.date)),[snaps]);
+
+  const dIdx=d=>Math.max(0,Math.min(NDAYS-1,Math.ceil((new Date(d)-START)/86400000)));
+  const todayPlan=planned[dIdx(today)]||0;
+  const lastReal=realPts.length?realPts[realPts.length-1].pct:0;
+  const vari=lastReal-todayPlan;
+
+  const CW=560,CH=200;
+  const px=d=>(dIdx(d)/(NDAYS-1))*(CW-52)+36;
+  const py=p=>CH-24-(p/100)*(CH-44);
+  const planPath=planned.filter((_,i)=>i%3===0).map((p,i)=>`${i===0?'M':'L'}${36+(i*3/(NDAYS-1))*(CW-52)},${py(p)}`).join('');
+  const realPath=realPts.map((pt,i)=>`${i===0?'M':'L'}${px(pt.date)},${py(pt.pct)}`).join('');
+  const todayX=px(today);
+  const meses=['mai','jun','jul','ago'];
+  const mesMarks=meses.map((_,i)=>{const d=new Date(2026,4+i,1);return{x:px(d.toISOString().split('T')[0]),l:meses[i]};});
+
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-extrabold text-blue-700">{todayPlan.toFixed(2)}%</div>
+          <div className="text-xs text-blue-500 mt-0.5">Planejado acum.</div>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-extrabold text-green-700">{lastReal.toFixed(2)}%</div>
+          <div className="text-xs text-green-500 mt-0.5">Real registrado</div>
+        </div>
+        <div className={`rounded-xl p-3 text-center ${vari>=0?'bg-green-50':'bg-red-50'}`}>
+          <div className={`text-2xl font-extrabold ${vari>=0?'text-green-700':'text-red-600'}`}>{vari>=0?'+':''}{vari.toFixed(2)}%</div>
+          <div className="text-xs text-gray-500 mt-0.5">Variação</div>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-3 overflow-x-auto">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Curva S — Avanço Físico Geral</p>
+        <svg viewBox={`0 0 ${CW} ${CH}`} style={{width:'100%',maxWidth:CW,height:'auto'}}>
+          {[0,25,50,75,100].map(p=>(
+            <g key={p}>
+              <line x1="36" x2={CW-16} y1={py(p)} y2={py(p)} stroke="#E5E7EB" strokeWidth="1"/>
+              <text x="32" y={py(p)+4} textAnchor="end" fontSize="9" fill="#9CA3AF">{p}%</text>
+            </g>
+          ))}
+          {mesMarks.map(m=>(
+            <g key={m.l}>
+              <line x1={m.x} x2={m.x} y1={py(0)} y2={py(0)+6} stroke="#D1D5DB" strokeWidth="1"/>
+              <text x={m.x} y={py(0)+16} textAnchor="middle" fontSize="9" fill="#6B7280">{m.l}</text>
+            </g>
+          ))}
+          {planPath&&<path d={planPath} fill="none" stroke="#2563EB" strokeWidth="2"/>}
+          {realPath&&<path d={realPath} fill="none" stroke="#16A34A" strokeWidth="2.5"/>}
+          {realPts.map(pt=><circle key={pt.date} cx={px(pt.date)} cy={py(pt.pct)} r="3.5" fill="#16A34A"/>)}
+          <line x1={todayX} x2={todayX} y1={18} y2={py(0)} stroke="#F97316" strokeWidth="1.5" strokeDasharray="4,3"/>
+          <text x={todayX} y={14} textAnchor="middle" fontSize="8" fill="#F97316">hoje</text>
+          <rect x="38" y="8" width="12" height="3" fill="#2563EB" rx="1.5"/>
+          <text x="53" y="12" fontSize="8" fill="#2563EB">Planejado</text>
+          <rect x="105" y="8" width="12" height="3" fill="#16A34A" rx="1.5"/>
+          <text x="120" y="12" fontSize="8" fill="#16A34A">Real</text>
+        </svg>
+      </div>
+
+      {canEdit&&(
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-bold text-amber-800">📋 Avanço hoje — {today.split('-').reverse().join('/')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Auto-elementos: {elPct.toFixed(2)}%</p>
+              {msg&&<p className="text-sm text-green-700 font-medium mt-1">{msg}</p>}
+            </div>
+            <button onClick={abrirModal} disabled={!db}
+              className="px-5 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 disabled:opacity-60 text-sm">
+              ✏️ Registrar avanço
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modalOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={()=>setModalOpen(false)}>
+          <div style={{background:'white',borderRadius:'20px 20px 0 0',padding:'28px 24px',width:'100%',maxWidth:480,boxShadow:'0 -4px 32px rgba(0,0,0,0.18)'}}
+            onClick={e=>e.stopPropagation()}>
+            <p style={{fontWeight:700,fontSize:15,color:'#92400E',marginBottom:4}}>📋 Registrar avanço</p>
+            <p style={{fontSize:12,color:'#6B7280',marginBottom:20}}>{today.split('-').reverse().join('/')} — Auto-elementos: {elPct.toFixed(2)}%</p>
+            <input
+              autoFocus
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              value={modalVal}
+              onChange={e=>setModalVal(e.target.value.replace(/[^0-9.,]/g,''))}
+              onKeyDown={e=>e.key==='Enter'&&salvar()}
+              placeholder="Ex: 75.50"
+              style={{width:'100%',fontSize:36,fontWeight:700,textAlign:'center',border:'2px solid #F59E0B',borderRadius:12,padding:'14px 8px',boxSizing:'border-box',outline:'none',color:'#1F2937'}}
+            />
+            <p style={{fontSize:11,color:'#9CA3AF',textAlign:'center',marginTop:6}}>Digite o % realizado (0 a 100)</p>
+            <div style={{display:'flex',gap:12,marginTop:20}}>
+              <button onClick={()=>setModalOpen(false)}
+                style={{flex:1,padding:'12px',border:'1px solid #D1D5DB',borderRadius:12,background:'white',fontWeight:600,fontSize:14,color:'#374151',cursor:'pointer'}}>
+                Cancelar
+              </button>
+              <button onClick={salvar} disabled={saving}
+                style={{flex:2,padding:'12px',background:saving?'#9CA3AF':'#D97706',color:'white',borderRadius:12,fontWeight:700,fontSize:16,border:'none',cursor:saving?'not-allowed':'pointer'}}>
+                {saving?'Salvando…':'Confirmar ✓'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="bg-gray-50 px-4 py-2 border-b">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Histórico de Registros</p>
+        </div>
+        {!realPts.length?(
+          <p className="text-center text-gray-400 py-8 text-sm">Nenhum registro ainda.</p>
+        ):(
+          <div className="divide-y max-h-72 overflow-y-auto">
+            {[...realPts].reverse().map(pt=>{
+              const plan=planned[dIdx(pt.date)]||0;
+              const v=pt.pct-plan;
+              return(
+                <div key={pt.date} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 text-sm">
+                  <span className="font-mono text-gray-600">{pt.date.split('-').reverse().join('/')}</span>
+                  <div className="flex gap-4 items-center">
+                    <span className="text-blue-600">Plan: {plan.toFixed(2)}%</span>
+                    <span className="font-bold text-green-700">Real: {pt.pct.toFixed(2)}%</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v>=0?'bg-green-100 text-green-700':'bg-red-100 text-red-600'}`}>{v>=0?'+':''}{v.toFixed(2)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ PAINEL DE PROJETO ═══════════════ */
+function PainelProjeto({project,role='viewer',obraCode,onBack,onUpdate}){
+  const[tab,setTab]=useState('3d');
+  const[selId,setSelId]=useState(null);
+  const[showLote,setShowLote]=useState(false);
+  const[showConfig,setShowConfig]=useState(false);
+  const selEl=selId?project.elements[selId]:null;
+  const stats=useMemo(()=>calcStats(project.elements),[project.elements]);
+  const telhasInfo=useMemo(()=>calcTelhas(project),[project.telhas,project.config]);
+  const canEdit=role==='apontador'||role==='admin';
+  const isAdmin=role==='admin';
+
+  const handleEditConfig=(newName,newCfg)=>{
+    const newEls=gerarElementos(newCfg);
+    const old=project.elements;
+    Object.keys(newEls).forEach(id=>{if(old[id]){newEls[id].status=old[id].status;newEls[id].history=toArr(old[id].history);}});
+    onUpdate({...project,name:newName,config:newCfg,elements:newEls});
+    setShowConfig(false);
+  };
+
+  const update=(id,ns,entry)=>{
+    const el=project.elements[id];
+    onUpdate({...project,elements:{...project.elements,[id]:{...el,status:ns,history:[...toArr(el.history),entry]}}});
+  };
+
+  const bulkUpdate=upd=>{
+    const newEls={...project.elements};
+    Object.entries(upd).forEach(([id,u])=>{
+      const el=newEls[id];
+      newEls[id]={...el,status:u.status,history:[...toArr(el.history),u.entry]};
+    });
+    onUpdate({...project,elements:newEls});
+  };
+
+  const pct=stats.pct;
+  const barClr=pct===100?'#22C55E':pct>60?'#3B82F6':pct>30?'#F97316':'#FBBF24';
+  const tabs=[{id:'3d',l:'🏗️ 3D'},{id:'telhas',l:'🧱 Telhas'},{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'hist',l:'Histórico'},{id:'curva',l:'📈 Curva S'}];
+  const roleBadge={viewer:{l:'👁️ Visitante',c:'bg-gray-100 text-gray-600'},apontador:{l:'✏️ Apontador',c:'bg-amber-100 text-amber-700'},admin:{l:'⚙️ Gestor',c:'bg-blue-100 text-blue-700'}};
+  const badge=roleBadge[role];
+
+  return(
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white shadow-sm sticky top-0 z-30">
+        <div className="max-w-5xl mx-auto px-3 py-3 flex items-center gap-2">
+          <button onClick={onBack} className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 text-xl leading-none">←</button>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="font-bold text-gray-900 truncate text-base sm:text-lg">{project.name}</h1>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.c}`}>{badge.l}</span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:COR_TELHA_AZUL}}>🧱 {telhasInfo.geral}% telhas</span>
+              <span className="text-xs font-medium text-gray-400">🏗️ {pct}% estrutura</span>
+            </div>
+            <p className="text-xs text-gray-500">{project.config.eixos} eixos · {project.config.vaos} nave · {project.config.aguas} águas · {stats.tot} elementos</p>
+          </div>
+          {isAdmin&&<button onClick={()=>setShowConfig(true)} title="Configurações da obra" className="p-2 rounded-lg hover:bg-gray-100 text-gray-400" style={{fontSize:'20px'}}>⚙️</button>}
+        </div>
+        <div className="max-w-5xl mx-auto px-3 pb-2">
+          <div className="h-2.5 bg-gray-100 rounded-full overflow-hidden flex">
+            {SORD.slice(1).map(s=>{const w=stats.tot>0?(stats.byS[s]||0)/stats.tot*100:0;return w>0?<div key={s} style={{width:`${w}%`,background:SCOR[s]}} title={`${SLAB[s]}: ${stats.byS[s]||0}`}/>:null;})}
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-5xl mx-auto px-3 pt-3 pb-8">
+        <TelhasIndicadores info={telhasInfo}/>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">🏗️ Estrutura — lixamento / pintura</p>
+        <div className="grid grid-cols-5 gap-1.5 mb-3">
+          {SORD.map(s=>(
+            <div key={s} className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
+              <div className="font-bold text-lg leading-tight" style={{color:SCOR[s]}}>{stats.byS[s]||0}</div>
+              <div className="text-xs text-gray-500 leading-tight mt-0.5 hidden sm:block">{SLAB[s]}</div>
+              <span className="ldot w-2 h-2 sm:hidden mt-1 inline-block" style={{background:SCOR[s]}}/>
+            </div>
+          ))}
+        </div>
+        <div className="grid grid-cols-4 gap-1.5 mb-3">
+          {['pilar','tesoura','tc','tf'].map(t=>{
+            const tot=Object.values(project.elements).filter(e=>e.type===t).length;
+            const done=Object.values(project.elements).filter(e=>e.type===t&&e.status===S.C).length;
+            const p=tot>0?Math.round(done/tot*100):0;
+            return(
+              <div key={t} className="bg-white rounded-xl p-2.5 shadow-sm border border-gray-100">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-gray-600">{TLABP[t]}</span>
+                  <span className="text-xs font-bold text-green-600">{p}%</span>
+                </div>
+                <div className="h-1.5 bg-gray-100 rounded-full mt-1 overflow-hidden">
+                  <div className="h-full bg-green-500 rounded-full" style={{width:`${p}%`}}/>
+                </div>
+                <div className="text-xs text-gray-400 mt-1">{done}/{tot}</div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="mb-3">
+          <BuscaEndereco elements={project.elements} onSelect={id=>{setSelId(id);}}/>
+        </div>
+
+        {canEdit&&(
+          <div className="mb-3">
+            <button onClick={()=>setShowLote(v=>!v)} className="text-sm font-medium text-amber-700 hover:text-amber-800 underline decoration-dashed">
+              {showLote?'▲ Ocultar apontamento em lote':'▼ Apontamento em lote (por faixa de eixos)'}
+            </button>
+            {showLote&&<div className="mt-2"><ApontamentoLote project={project} onUpdate={bulkUpdate}/></div>}
+          </div>
+        )}
+
+        <div className="bg-white rounded-t-xl border-b border-gray-200 flex overflow-x-auto">
+          {tabs.map(t=>(
+            <button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-3 text-sm whitespace-nowrap ${tab===t.id?'tab-on':'tab-off'}`}>{t.l}</button>
+          ))}
+        </div>
+        <div className="bg-white rounded-b-xl shadow-sm p-3 sm:p-4">
+          {(tab==='lateral'||tab==='planta')&&(
+            <div className="flex flex-wrap gap-3 mb-3 pb-3 border-b border-gray-100">
+              {SORD.map(s=>(
+                <div key={s} className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <span className="ldot" style={{background:SCOR[s]}}/>{SLAB[s]}
+                </div>
+              ))}
+            </div>
+          )}
+          {tab==='3d'&&<Vista3D project={project}/>}
+          {tab==='telhas'&&<TabTelhas project={project} canEdit={canEdit} onUpdate={onUpdate}/>}
+          {tab==='lateral'&&<VistaLateral project={project} selectedId={selId} onSelect={setSelId}/>}
+          {tab==='planta'&&<Planta2D project={project} selectedId={selId} onSelect={setSelId}/>}
+          {tab==='hist'&&<Historico elements={project.elements}/>}
+          {tab==='curva'&&<TabCurvaS project={project} obraCode={obraCode} canEdit={canEdit}/>}
+        </div>
+      </div>
+
+      {selEl&&<ModalElemento element={selEl} onClose={()=>setSelId(null)} onUpdate={update} canEdit={canEdit}/>}
+      {showConfig&&<ModalEditarConfig project={project} onClose={()=>setShowConfig(false)} onSave={handleEditConfig}/>}
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL EDITAR CONFIG ═══════════════ */
+function ModalEditarConfig({project,onClose,onSave}){
+  const cfg=project.config;
+  const[f,setF]=useState({name:project.name,eixos:cfg.eixos,vaos:cfg.vaos||1,aguas:cfg.aguas||2,nTC:cfg.nTC||5,nTF:cfg.nTF||4,vaoComprimento:cfg.vaoComprimento||6,largura:cfg.largura||18,alturaColuna:cfg.alturaColuna||8});
+  const[err,setErr]=useState({});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const validate=()=>{const e={};if(!f.name.trim())e.name='Obrigatório';if(f.eixos<2||f.eixos>60)e.eixos='2 a 60';if(f.nTC<1||f.nTC>20)e.nTC='1 a 20';if(f.nTF<1||f.nTF>20)e.nTF='1 a 20';setErr(e);return Object.keys(e).length===0;};
+  const salvar=()=>{if(!validate())return;const newCfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};onSave(f.name.trim(),newCfg);};
+  const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
+  const F=({lbl,k,type='number',min,max})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label><input type={type} value={f[k]} min={min} max={max} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[95vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">⚙️ Configurações da Obra</h2><button onClick={onClose} className="text-gray-400 text-2xl">×</button></div>
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4"><p className="text-xs text-amber-800 font-medium">⚠️ Ao alterar a estrutura, os elementos são regenerados. Status já apontados são preservados para elementos que continuam existindo.</p></div>
+        <div className="space-y-4">
+          <F lbl="Nome da Obra" k="name" type="text"/>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estrutura</p>
+            <div className="grid grid-cols-2 gap-3"><F lbl="Eixos (transversais)" k="eixos" min={2} max={60}/><F lbl="Vãos (naves)" k="vaos" min={1} max={5}/></div>
+            <div className="mt-3"><label className="block text-sm font-medium text-gray-700 mb-0.5">Número de Águas</label><select value={f.aguas} onChange={e=>set('aguas',+e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value={1}>1 Água</option><option value={2}>2 Águas</option></select></div>
+          </div>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Terças</p><div className="grid grid-cols-2 gap-3"><F lbl="Terças Cobertura / vão / água" k="nTC" min={1} max={20}/><F lbl="Terças Fechamento / vão / face" k="nTF" min={1} max={20}/></div></div>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dimensões (metros)</p><div className="grid grid-cols-3 gap-3"><F lbl="Espaç. entre Eixos" k="vaoComprimento" min={1} max={20}/><F lbl="Largura do Vão" k="largura" min={5} max={80}/><F lbl="Altura Colunas" k="alturaColuna" min={2} max={25}/></div></div>
+        </div>
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl"><p className="text-sm font-bold text-blue-800 mb-2">Resumo da nova estrutura</p>
+          <div className="grid grid-cols-2 gap-1 text-sm">{[['Pilares',tot.p],['Tesouras',tot.ts],['Terças Cobertura',tot.tco],['Terças Fechamento',tot.tfe]].map(([l,v])=>(<React.Fragment key={l}><span className="text-gray-600">{l}:</span><span className="font-bold">{v}</span></React.Fragment>))}<span className="text-gray-700 font-bold">TOTAL:</span><span className="font-extrabold text-blue-700 text-base">{tot.total} elementos</span></div>
+          <p className="text-xs text-gray-500 mt-2">Comprimento ~{((+f.eixos-1)*(+f.vaoComprimento)).toFixed(0)}m · Largura {(+f.largura*(+f.vaos||1)).toFixed(0)}m</p>
+        </div>
+        <div className="flex gap-3 mt-4"><button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium">Cancelar</button><button onClick={salvar} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold shadow-lg">Salvar ✓</button></div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ MODAL NOVA OBRA ═══════════════ */
+function ModalNovaObra({onClose,onCreate}){
+  const[f,setF]=useState({name:'',codigo:'',pinAdmin:'',pinApontador:'',eixos:17,vaos:1,aguas:2,nTC:5,nTF:4,vaoComprimento:6,largura:18,alturaColuna:8});
+  const[err,setErr]=useState({});
+  const set=(k,v)=>setF(p=>({...p,[k]:v}));
+  const validate=()=>{
+    const e={};
+    if(!f.name.trim())e.name='Obrigatório';
+    if(!f.codigo.trim())e.codigo='Obrigatório';
+    if(!/^[A-Z0-9_-]{3,20}$/i.test(f.codigo.trim()))e.codigo='3-20 chars, somente letras/números/-_';
+    if(f.eixos<2||f.eixos>60)e.eixos='2 a 60';
+    if(f.nTC<1||f.nTC>20)e.nTC='1 a 20';
+    if(f.nTF<1||f.nTF>20)e.nTF='1 a 20';
+    setErr(e);return Object.keys(e).length===0;
+  };
+  const criar=async()=>{
+    if(!validate())return;
+    const code=f.codigo.trim().toUpperCase();
+    // Verifica se código já existe
+    if(db){
+      const snap=await db.ref(`/obras/${code}/name`).once('value');
+      if(snap.val()){setErr(e=>({...e,codigo:'Este código já está em uso.'}));return;}
+    }
+    const cfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};
+    const elements=gerarElementos(cfg);
+    onCreate({code,name:f.name.trim(),config:cfg,elements,createdAt:new Date().toISOString(),pinAdmin:f.pinAdmin||'',pinApontador:f.pinApontador||''});
+  };
+  const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
+  const F=({lbl,k,type='number',note,min,max,placeholder})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label>{note&&<p className="text-xs text-gray-400 mb-1">{note}</p>}<input type={type} value={f[k]} min={min} max={max} placeholder={placeholder} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
+  return(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-white w-full sm:max-w-lg sm:rounded-2xl rounded-t-2xl shadow-2xl p-5 max-h-[95vh] overflow-y-auto" onClick={e=>e.stopPropagation()}>
+        <div className="flex justify-between items-center mb-4"><h2 className="text-xl font-bold">🏗️ Nova Obra</h2><button onClick={onClose} className="text-gray-400 text-2xl">×</button></div>
+        <div className="space-y-4">
+          <F lbl="Nome da Obra" k="name" type="text" note="Ex: Galpão Belém, Obra Manaus-01"/>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Acesso Online</p>
+            <F lbl="Código da Obra" k="codigo" type="text" note="Código único para acessar. Ex: BELEM2025" placeholder="BELEM2025"/>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Senhas de Acesso (opcional)</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="PIN Gestor" k="pinAdmin" type="text" placeholder="Deixe em branco = livre"/>
+              <F lbl="PIN Apontador" k="pinApontador" type="text" placeholder="Deixe em branco = livre"/>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Estrutura</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="Eixos" k="eixos" min={2} max={60} note="Ao longo do comprimento"/>
+              <F lbl="Vãos (naves)" k="vaos" min={1} max={5} note="1 = nave única"/>
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <div><label className="block text-sm font-medium text-gray-700 mb-0.5">Número de Águas</label><select value={f.aguas} onChange={e=>set('aguas',+e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value={1}>1 Água</option><option value={2}>2 Águas</option></select></div>
+              <div/>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Terças</p>
+            <div className="grid grid-cols-2 gap-3">
+              <F lbl="Terças Cob. / vão / água" k="nTC" min={1} max={20}/>
+              <F lbl="Terças Fech. / vão / face" k="nTF" min={1} max={20}/>
+            </div>
+          </div>
+          <div className="border-t pt-4">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dimensões (metros)</p>
+            <div className="grid grid-cols-3 gap-3">
+              <F lbl="Espaç. Eixos" k="vaoComprimento" min={1} max={20}/>
+              <F lbl="Largura Vão" k="largura" min={5} max={80}/>
+              <F lbl="Altura Colunas" k="alturaColuna" min={2} max={25}/>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 p-4 bg-blue-50 rounded-xl"><p className="text-sm font-bold text-blue-800 mb-2">Resumo do Galpão</p>
+          <div className="grid grid-cols-2 gap-1 text-sm">{[['Pilares',tot.p],['Tesouras',tot.ts],['Terças Cobertura',tot.tco],['Terças Fechamento',tot.tfe]].map(([l,v])=>(<React.Fragment key={l}><span className="text-gray-600">{l}:</span><span className="font-bold">{v}</span></React.Fragment>))}<span className="text-gray-700 font-bold col-span-1">TOTAL:</span><span className="font-extrabold text-blue-700 text-base">{tot.total} elementos</span></div>
+        </div>
+        <div className="flex gap-3 mt-4"><button onClick={onClose} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-medium">Cancelar</button><button onClick={criar} className="flex-1 py-3 rounded-xl bg-blue-600 text-white font-bold shadow-lg">Criar Obra ✓</button></div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ TELA DE LOGIN ═══════════════ */
+function LoginScreen({onLogin,onNew}){
+  const[code,setCode]=useState('');
+  const[pin,setPin]=useState('');
+  const[step,setStep]=useState(1);
+  const[foundData,setFoundData]=useState(null);
+  const[foundCode,setFoundCode]=useState('');
+  const[error,setError]=useState('');
+  const[loading,setLoading]=useState(false);
+
+  const buscar=async()=>{
+    const c=code.trim().toUpperCase();
+    if(!c){setError('Digite o código da obra.');return;}
+    setLoading(true);setError('');
+    try{
+      const snap=await db.ref(`/obras/${c}`).once('value');
+      const data=snap.val();
+      if(!data){setError('Obra não encontrada. Verifique o código ou crie uma nova obra.');setLoading(false);return;}
+      setFoundData(data);setFoundCode(c);setStep(2);
+    }catch(e){setError('Erro de conexão. Verifique sua internet.');}
+    setLoading(false);
+  };
+
+  const entrar=(role)=>{
+    const reqPin=role==='admin'?foundData.pinAdmin:foundData.pinApontador;
+    if(reqPin&&pin.trim()!==reqPin.trim()){setError('PIN incorreto.');return;}
+    onLogin(foundCode,role,foundData);
+  };
+
+  if(!FIREBASE_OK){
+    return(
+      <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl p-8 max-w-md w-full">
+          <div className="text-center mb-6"><div className="text-5xl mb-3">🏗️</div><h1 className="text-2xl font-extrabold text-gray-900">GalpãoTrack</h1></div>
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 mb-6">
+            <p className="font-bold text-amber-800 mb-2">⚠️ Firebase não configurado</p>
+            <p className="text-sm text-amber-700">Para usar online, edite o arquivo <code className="bg-amber-100 px-1 rounded">index.html</code> e substitua os valores de <strong>FIREBASE_CONFIG</strong> com as credenciais do seu projeto Firebase.</p>
+          </div>
+          <ol className="text-sm text-gray-600 space-y-2 list-decimal pl-4">
+            <li>Acesse <strong>console.firebase.google.com</strong></li>
+            <li>Crie um projeto → Adicione um app Web (<code className="bg-gray-100 px-1 rounded">&lt;/&gt;</code>)</li>
+            <li>Copie o <code className="bg-gray-100 px-1 rounded">firebaseConfig</code></li>
+            <li>Ative o <strong>Realtime Database</strong> em modo teste</li>
+            <li>Cole o config no topo do <code className="bg-gray-100 px-1 rounded">index.html</code></li>
+          </ol>
+        </div>
+      </div>
+    );
+  }
+
+  const headerCard=(
+    <div className="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-8 text-center text-white relative">
+      <a href="https://eng-zabotti.github.io/comercialgerdaubelem/" target="_blank"
+        className="absolute top-3 left-3 flex items-center gap-1 text-blue-200 hover:text-white text-xs font-medium bg-blue-800/40 hover:bg-blue-800/70 px-2 py-1 rounded-lg transition-all">
+        ← Dashboard
+      </a>
+      <div className="text-5xl mb-2">🏗️</div>
+      <h1 className="text-2xl font-extrabold">GalpãoTrack</h1>
+      <p className="text-blue-200 text-sm mt-1">Estrutura · Telhas · Avanço de Obra</p>
+      <p className="text-blue-300/70 text-xs mt-0.5">v{VERSION} · Fase Telhas</p>
+    </div>
+  );
+
+  if(step===2&&foundData){
+    return(
+      <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+          {headerCard}
+          <div className="p-6">
+            <div className="bg-blue-50 rounded-xl px-4 py-2 mb-4 text-center">
+              <p className="text-xs text-blue-500 font-medium">Obra encontrada</p>
+              <p className="font-bold text-blue-800 text-lg">{foundData.name}</p>
+            </div>
+            <label className="block text-sm font-bold text-gray-700 mb-2">PIN de Acesso</label>
+            <input value={pin} onChange={e=>setPin(e.target.value)}
+              onKeyDown={e=>e.key==='Enter'&&entrar('admin')}
+              type="password" placeholder="Digite o PIN"
+              className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-blue-500"/>
+            {error&&<p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+            <div className="grid grid-cols-2 gap-3 mt-4">
+              <button onClick={()=>entrar('admin')}
+                className="py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700">
+                ⚙️ Gestor
+              </button>
+              <button onClick={()=>entrar('apontador')}
+                className="py-3 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600">
+                ✏️ Apontador
+              </button>
+            </div>
+            <button onClick={()=>onLogin(foundCode,'viewer',foundData)}
+              className="w-full mt-3 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 border border-gray-200">
+              👁️ Entrar como Visitante <span className="font-normal text-gray-400 text-sm">(sem senha)</span>
+            </button>
+            <button onClick={()=>{setStep(1);setPin('');setError('');}} className="w-full mt-3 text-sm text-gray-500 hover:underline">← Voltar</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return(
+    <div className="min-h-screen bg-gradient-to-br from-blue-950 via-blue-900 to-blue-800 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+        {headerCard}
+        <div className="p-6">
+          <label className="block text-sm font-bold text-gray-700 mb-2">Código da Obra</label>
+          <input value={code} onChange={e=>setCode(e.target.value.toUpperCase())}
+            onKeyDown={e=>e.key==='Enter'&&buscar()}
+            placeholder="Ex: BELEM2025"
+            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-center text-lg font-bold tracking-widest focus:outline-none focus:border-blue-500 uppercase"/>
+          {error&&<p className="text-red-500 text-sm mt-2 text-center">{error}</p>}
+          <button onClick={buscar} disabled={loading}
+            className="w-full mt-4 py-3 bg-blue-600 text-white rounded-xl font-bold text-lg hover:bg-blue-700 disabled:opacity-60">
+            {loading?'Buscando...':'Buscar Obra →'}
+          </button>
+          <div className="mt-4 text-center">
+            <button onClick={onNew} className="text-sm text-blue-600 hover:underline font-medium">+ Criar nova obra</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════ APP ROOT ═══════════════ */
+function App(){
+  const[view,setView]=useState('login');       // login | project | loading
+  const[obraCode,setObraCode]=useState('');
+  const[project,setProject]=useState(null);
+  const[role,setRole]=useState('viewer');
+  const[showNew,setShowNew]=useState(false);
+
+  // Real-time listener Firebase
+  useEffect(()=>{
+    if(!db||!obraCode||view!=='project')return;
+    const ref=db.ref(`/obras/${obraCode}`);
+    ref.on('value',snap=>{
+      const raw=snap.val();
+      if(raw)setProject(normProject(raw));
+    });
+    return()=>ref.off('value');
+  },[obraCode,view]);
+
+  const handleLogin=(code,userRole,data)=>{
+    setObraCode(code);
+    setRole(userRole);
+    setProject(normProject(data));
+    setView('project');
+  };
+
+  const updateProject=p=>{
+    setProject(p); // Atualização otimista local
+    if(db)db.ref(`/obras/${obraCode}`).set(p);
+  };
+
+  const createProject=async(p)=>{
+    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt,pinAdmin:p.pinAdmin||'',pinApontador:p.pinApontador||'',telhas:{bays:{},frontal:0,nFrontal:NF_DEFAULT}};
+    if(db)await db.ref(`/obras/${p.code}`).set(obraObj);
+    setShowNew(false);
+    handleLogin(p.code,'admin',obraObj);
+  };
+
+  if(view==='project'&&project){
+    return<PainelProjeto project={project} role={role} obraCode={obraCode} onBack={()=>setView('login')} onUpdate={updateProject}/>;
+  }
+
+  return(
+    <>
+      <LoginScreen onLogin={handleLogin} onNew={()=>setShowNew(true)}/>
+      {showNew&&<ModalNovaObra onClose={()=>setShowNew(false)} onCreate={createProject}/>}
+    </>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 </script>
 </body>
 </html>
