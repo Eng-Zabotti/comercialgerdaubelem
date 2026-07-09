@@ -37,13 +37,6 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .kpi-val{font-family:'Barlow Condensed',sans-serif;font-size:2rem;font-weight:800;color:var(--kc,var(--yellow));line-height:1}
 .kpi-sub{font-size:.65rem;color:var(--dim);margin-top:3px}
 .sec-title{font-family:'Barlow Condensed',sans-serif;font-size:.9rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--yellow);border-left:3px solid var(--yellow);padding-left:9px;margin-bottom:12px;margin-top:24px}
-.sec-title.sec-toggle{cursor:pointer;user-select:none;display:flex;align-items:center;gap:8px}
-.sec-title .sec-tgl{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1px solid var(--yellow);border-radius:4px;font-size:.9rem;line-height:1;flex-shrink:0}
-.sec-title .sec-link{margin-left:auto;font-size:.7rem;color:#94a3b8;text-transform:none;letter-spacing:0;font-weight:600;text-decoration:none}
-.sec-title .sec-link:hover{color:#e2e8f0}
-.g3d-wrap{margin-bottom:22px;border:1px solid rgba(148,163,184,.22);border-radius:12px;overflow:hidden;background:#0b1220}
-.g3d-frame{display:block;width:100%;height:440px;border:0}
-@media(max-width:768px){.g3d-frame{height:320px}}
 .vaos-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:22px}
 .vao-card{background:var(--mid);border:1px solid var(--border);border-radius:10px;padding:12px 14px;cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
 .vao-card:hover{transform:translateY(-2px);border-color:rgba(245,184,0,.4)}
@@ -176,7 +169,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 <main>
   <div class="tabs">
     <button class="tab-btn active" onclick="showTab('dashboard')">Dashboard</button>
-    <button class="tab-btn" onclick="showTab('indicadores')">Indicadores</button>
+
     <button class="tab-btn" onclick="showTab('mapa')">Mapa do Galpão</button>
     <button class="tab-btn" onclick="showTab('cronograma')">Cronograma</button>
     <button class="tab-btn" onclick="showTab('tarefas')">Tarefas</button>
@@ -187,16 +180,9 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 
   <div id="tab-dashboard" class="tab-content active">
     <div class="kpi-strip" id="kpi-strip"></div>
-
-    <div class="sec-title sec-toggle" onclick="toggleSec(this,'g3d-wrap')"><span class="sec-tgl">−</span>Vista 3D do Galpão — Telhas<a href="./galpaotrack.html" target="_blank" class="sec-link" onclick="event.stopPropagation()">abrir em tela cheia ↗</a></div>
-    <div class="g3d-wrap" id="g3d-wrap">
-      <iframe class="g3d-frame" src="./galpaotrack.html?obra=BELEM2025&view=3d" title="Vista 3D do Galpão" loading="lazy"></iframe>
-    </div>
-
-    <div class="sec-title sec-toggle" onclick="toggleSec(this,'vaos-grid')"><span class="sec-tgl">−</span>Recuperação Estrutural — 16 Vãos</div>
+    <div class="sec-title">Recuperação Estrutural — 16 Vãos</div>
     <div class="vaos-grid" id="vaos-grid"></div>
-
-    <div class="sec-title sec-toggle" onclick="toggleSec(this,'phases-grid')"><span class="sec-tgl">−</span>Outros Serviços</div>
+    <div class="sec-title">Outros Serviços</div>
     <div class="phases-grid" id="phases-grid"></div>
   </div>
 
@@ -582,18 +568,6 @@ function overallGeral(){
 }
 
 // ============================
-// SEÇÕES RECOLHÍVEIS (+/−)
-// ============================
-function toggleSec(el,id){
-  const g=document.getElementById(id);
-  if(!g)return;
-  const hidden=g.style.display==='none';
-  g.style.display=hidden?'':'none';
-  const t=el.querySelector('.sec-tgl');
-  if(t)t.textContent=hidden?'−':'+';
-}
-
-// ============================
 // TABS
 // ============================
 function showTab(id){
@@ -620,7 +594,7 @@ function renderDashboard(){
   const realAcum=lastRealRow?lastRealRow.realAcum:null;
   const desvio=(realAcum!=null&&planAcum!=null)?Math.round((realAcum-planAcum)*10)/10:null;
   const desvioKC=desvio==null?'var(--dim)':desvio>=0?'#22c55e':'#ef4444';
-  const desvioStr=desvio==null?'—':(desvio>=0?'+':'')+desvio.toFixed(1)+'%';
+  const desvioStr=desvio==null?'—':fmtPct(desvio,true);
   const desvioSub=desvio==null?'Sem dados':desvio>0?'Adiantado':desvio===0?'No prazo':'Atrasado';
 
   const elapsed=daysBetween(OBRA_START,TODAY);
@@ -629,8 +603,8 @@ function renderDashboard(){
   const done=VAOS.filter(v=>vaoOverall(v.id)===100).length;
   const tercas=state.phases.tercas;
   document.getElementById('kpi-strip').innerHTML=`
-    <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Avanço Planejado</div><div class="kpi-val" style="color:#3b82f6">${planAcum!=null?planAcum.toFixed(1)+'%':'—'}</div><div class="kpi-sub">Acumulado hoje</div></div>
-    <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Avanço Real</div><div class="kpi-val" style="color:#22c55e">${realAcum!=null?realAcum.toFixed(1)+'%':'—'}</div><div class="kpi-sub">${lastRealRow?'Ref: '+lastRealRow.dt:'Sem dados'}</div></div>
+    <div class="kpi" style="--kc:#3b82f6"><div class="kpi-lbl">Avanço Planejado</div><div class="kpi-val" style="color:#3b82f6">${planAcum!=null?fmtPct(planAcum):'—'}</div><div class="kpi-sub">Acumulado hoje</div></div>
+    <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Avanço Real</div><div class="kpi-val" style="color:#22c55e">${realAcum!=null?fmtPct(realAcum):'—'}</div><div class="kpi-sub">${lastRealRow?'Ref: '+lastRealRow.dt:'Sem dados'}</div></div>
     <div class="kpi" style="--kc:${desvioKC}"><div class="kpi-lbl">Desvio</div><div class="kpi-val" style="color:${desvioKC}">${desvioStr}</div><div class="kpi-sub">${desvioSub}</div></div>
     <div class="kpi" style="--kc:#22c55e"><div class="kpi-lbl">Vãos Concluídos</div><div class="kpi-val">${done}/16</div><div class="kpi-sub">100% completo</div></div>
     <div class="kpi" style="--kc:#f59e0b"><div class="kpi-lbl">Terças Perimetrais</div><div class="kpi-val">${tercas}%</div><div class="kpi-sub">15/05 → 06/07/26</div></div>
@@ -927,6 +901,12 @@ function saveIndicadores(){
 // CURVA S
 // ============================
 
+function fmtPct(v,sign=false){
+  if(v==null)return'—';
+  const s=Math.abs(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  return(sign?(v>=0?'+':'-'):'')+(v<0&&!sign?'-':'')+s+'%';
+}
+
 // Calcula planAcum, realAcum, desvioDia e desvioAcum a partir dos valores diários
 function computeCurvas(curvas){
   let planAcum=0, realAcum=0;
@@ -988,7 +968,7 @@ function toggleDayTasks(i){
   if(icon)icon.textContent=isOpen?'+':'−';
 }
 
-function buildCurvaTable(skipScroll){
+function buildCurvaTable(){
   const comp=computeCurvas(state.curvas);
   const rows=comp.map((row,i)=>{
     const isToday=row.dt===TODAY;
@@ -1006,12 +986,12 @@ function buildCurvaTable(skipScroll){
       </td>
       <td style="color:var(--dim);white-space:nowrap">${i+1}${isToday?'<span class="today-tag">HOJE</span>':''}</td>
       <td><input class="cs-inp cs-inp-d" value="${row.dt}" onchange="updateCurva(${i},'dt',this.value)"></td>
-      <td><input class="cs-inp cs-inp-sm" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${row.planDia??''}" placeholder="—" onchange="updateCurva(${i},'planDia',this.value)" style="border-color:rgba(59,130,246,.25)"></td>
-      <td style="color:#3b82f6;font-weight:600">${row.planAcum!=null?row.planAcum.toFixed(1)+'%':'—'}</td>
-      <td><input class="cs-inp cs-inp-sm" type="text" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" value="${row.realDia??''}" placeholder="—" onchange="updateCurva(${i},'realDia',this.value)" style="border-color:rgba(34,197,94,.25)"></td>
-      <td style="color:#22c55e;font-weight:600">${row.realAcum!=null?row.realAcum.toFixed(1)+'%':'—'}</td>
-      <td style="color:${dd};font-weight:700">${row.desvioD===null?'—':(row.desvioD>=0?'+':'')+row.desvioD.toFixed(1)+'%'}</td>
-      <td style="color:${dc};font-weight:700">${row.desvioA===null?'—':(row.desvioA>=0?'+':'')+row.desvioA.toFixed(1)+'%'}</td>
+      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.planDia??''}" placeholder="—" oninput="updateCurva(${i},'planDia',this.value)" style="border-color:rgba(59,130,246,.25)"></td>
+      <td style="color:#3b82f6;font-weight:600">${row.planAcum!=null?fmtPct(row.planAcum):'—'}</td>
+      <td><input class="cs-inp cs-inp-sm" type="number" min="0" max="100" step="0.1" value="${row.realDia??''}" placeholder="—" oninput="updateCurva(${i},'realDia',this.value)" style="border-color:rgba(34,197,94,.25)"></td>
+      <td style="color:#22c55e;font-weight:600">${row.realAcum!=null?fmtPct(row.realAcum):'—'}</td>
+      <td style="color:${dd};font-weight:700">${row.desvioD===null?'—':fmtPct(row.desvioD,true)}</td>
+      <td style="color:${dc};font-weight:700">${row.desvioA===null?'—':fmtPct(row.desvioA,true)}</td>
       <td><button class="btn-del" onclick="deleteRow(${i})" title="Remover linha">✕</button></td>
     </tr>
     <tr id="crow-tasks-${i}" class="curva-task-row" style="display:none">
@@ -1019,11 +999,9 @@ function buildCurvaTable(skipScroll){
     </tr>`;
   }).join('');
   document.getElementById('curva-tbody').innerHTML=rows;
-  // Rolar até hoje apenas na renderização inicial
-  if(!skipScroll){
-    const todayRow=document.getElementById('curva-tbody').querySelector('tr.today-row');
-    if(todayRow)setTimeout(()=>todayRow.scrollIntoView({block:'center',behavior:'smooth'}),100);
-  }
+  // Rolar até hoje
+  const todayRow=document.getElementById('curva-tbody').querySelector('tr.today-row');
+  if(todayRow)setTimeout(()=>todayRow.scrollIntoView({block:'center',behavior:'smooth'}),100);
 }
 
 function drawCurvaS(){
@@ -1112,8 +1090,8 @@ function drawCurvaS(){
     ctx.setLineDash([]);
     const todayPlanRow=planRows.find(r=>r.dt>=TODAY);
     if(todayPlanRow){
-      const dev=Math.round((lastReal.realAcum-todayPlanRow.planAcum)*10)/10;
-      const devStr=(dev>=0?'+':'')+dev+'%';
+      const dev=Math.round((lastReal.realAcum-todayPlanRow.planAcum)*100)/100;
+      const devStr=fmtPct(dev,true);
       ctx.fillStyle=dev>=0?'#22c55e':'#ef4444';
       ctx.font='bold 10px Barlow Condensed,sans-serif';ctx.textAlign='left';
       ctx.fillText('Desvio: '+devStr,cx(TODAY)+6,cy((lastReal.realAcum+todayPlanRow.planAcum)/2));
@@ -1142,13 +1120,12 @@ function drawCurvaS(){
 
 function updateCurva(i,field,val){
   if(field==='planDia'||field==='realDia'){
-    const norm=(val||'').replace(',','.');
-    state.curvas[i][field]=norm===''?null:parseFloat(norm);
+    state.curvas[i][field]=val===''?null:parseFloat(val);
   } else {
     state.curvas[i][field]=val;
   }
   save();
-  buildCurvaTable(true);
+  buildCurvaTable();
   drawCurvaS();
 }
 
@@ -1337,11 +1314,16 @@ function save(){
 window.onFirebaseUpdate=function(data,isFirst){
   if(!data){
     if(state&&state._upd){
-      // Este navegador já tem dados reais que a nuvem ainda não tem — semeia o banco.
       if(typeof window.firebaseSave==='function')window.firebaseSave(state);
     } else if(isFirst){
       document.getElementById('last-upd').textContent='Sem dados salvos ainda';
     }
+    return;
+  }
+  // Só usa dados do Firebase se forem mais recentes que os dados locais
+  if(state&&state._upd&&(!data._upd||state._upd>data._upd)){
+    if(typeof window.firebaseSave==='function')window.firebaseSave(state);
+    document.getElementById('last-upd').textContent=new Date(state._upd).toLocaleString('pt-BR');
     return;
   }
   state=data;
