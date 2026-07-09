@@ -40,6 +40,47 @@ const SLAB={pendente:'Pendente',lixando:'Em Lixamento',lixado:'Lixado',pintando:
 const TLAB={pilar:'Pilar',tesoura:'Tesoura',tc:'Terça Cob.',tf:'Terça Fech.'};
 const TLABP={pilar:'Pilares',tesoura:'Tesouras',tc:'Terças Cob.',tf:'Terças Fech.'};
 const pad2=n=>String(n).padStart(2,'0');
+const VERSION='2.0.0';
+
+/* ═══════════════ TELHAS — FASE INSTALAÇÃO ═══════════════ */
+const TILES_PER_BAY=7;                                        // 7 telhas por vão (c.3)
+const NF_DEFAULT=8;                                           // telhas do oitão frontal
+const TILE_LEN={cobEsq:8.9,cobDir:8.9,fechDir:8.9,lant:1.5,frontal:1.5}; // comprimento p/ ponderar (d.5)
+const COR_TELHA_AZUL='#20396B';   // ≈ RAL 5003 (azul safira) — telha substituída/instalada (e.6)
+const COR_METALICA='#AEB4BC';     // telha metálica (não substituída / pendente) (h.9)
+const COR_REDE='#22C55E';         // rede de proteção (c.4)
+const TELHA_LOCS=[
+  {k:'cobEsq', l:'Cob. Esq.',  c:'#3B82F6'},
+  {k:'cobDir', l:'Cob. Dir.',  c:'#2563EB'},
+  {k:'lant',   l:'Lanternin',  c:'#8B5CF6'},
+  {k:'fechDir',l:'Fech. Dir.', c:'#0EA5E9'},
+];
+const nBays=cfg=>Math.max(0,(+(cfg&&cfg.eixos)||1)-1);        // vãos de telha = eixos-1
+const LANT_MARGIN=1;                                          // lanternin recuado 1 vão em cada ponta
+const hasLant=(cfg,b)=>{const nb=nBays(cfg);return b>=1+LANT_MARGIN&&b<=nb-LANT_MARGIN;};
+function ensureBay(telhas,b){
+  const x=(telhas&&telhas.bays&&telhas.bays[b])||{};
+  const clamp=v=>Math.max(0,Math.min(TILES_PER_BAY,+v||0));
+  return{cobEsq:clamp(x.cobEsq),cobDir:clamp(x.cobDir),lant:clamp(x.lant),fechDir:clamp(x.fechDir),rede:!!x.rede};
+}
+function calcTelhas(project){
+  const telhas=project.telhas||{};
+  const NB=nBays(project.config), NF=+telhas.nFrontal||NF_DEFAULT;
+  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},frontal:{i:0,t:0}};
+  for(let b=1;b<=NB;b++){
+    const bd=ensureBay(telhas,b);
+    ['cobEsq','cobDir','fechDir'].forEach(k=>{loc[k].i+=bd[k];loc[k].t+=TILES_PER_BAY;});
+    if(hasLant(project.config,b)){loc.lant.i+=bd.lant;loc.lant.t+=TILES_PER_BAY;}  // lanternin só nos vãos centrais
+  }
+  loc.frontal.i=Math.max(0,Math.min(NF,+telhas.frontal||0));loc.frontal.t=NF;
+  let wi=0,wt=0;
+  Object.keys(loc).forEach(k=>{const w=TILE_LEN[k]||1;wi+=loc[k].i*w;wt+=loc[k].t*w;});
+  const r1=x=>Math.round(x*10)/10;
+  const pctLoc={};Object.keys(loc).forEach(k=>{pctLoc[k]=loc[k].t>0?r1(loc[k].i/loc[k].t*100):0;});
+  const totInst=Object.values(loc).reduce((a,v)=>a+v.i,0);
+  const totTelhas=Object.values(loc).reduce((a,v)=>a+v.t,0);
+  return{geral:wt>0?r1(wi/wt*100):0,loc,pctLoc,NB,NF,totInst,totTelhas};
+}
 
 /* ═══════════════════════════════════════════════════════════
    FIREBASE CONFIG
@@ -366,90 +407,181 @@ function Planta2D({project,selectedId,onSelect}){
   );
 }
 
-/* ═══════════════ VISTA 3D ═══════════════ */
+/* ═══════════════ VISTA 3D — GALPÃO REALISTA (TELHAS) ═══════════════ */
 function Vista3D({project}){
   const mountRef=useRef(null);
   const threeRef=useRef(null);
-  const builtFor=useRef(null);
+  const cfg=project.config||{};
+  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}`;
+
   const buildScene=useCallback(()=>{
     const container=mountRef.current;
     if(!container||!window.THREE)return;
     const{THREE}=window;
-    const W=container.clientWidth||600,H=420;
-    if(threeRef.current){threeRef.current.renderer.dispose();if(container.contains(threeRef.current.renderer.domElement))container.removeChild(threeRef.current.renderer.domElement);}
+    const W=container.clientWidth||600,H=440;
+    if(threeRef.current){threeRef.current.cleanup&&threeRef.current.cleanup();threeRef.current.renderer.dispose();if(container.contains(threeRef.current.renderer.domElement))container.removeChild(threeRef.current.renderer.domElement);}
     const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true});
-    renderer.setSize(W,H);renderer.setPixelRatio(window.devicePixelRatio);renderer.shadowMap.enabled=true;
+    renderer.setSize(W,H);renderer.setPixelRatio(window.devicePixelRatio);
     container.appendChild(renderer.domElement);
-    const scene=new THREE.Scene();scene.background=new THREE.Color(0xEFF6FF);
-    const camera=new THREE.PerspectiveCamera(50,W/H,0.1,500);
-    camera.position.set(25,18,25);camera.lookAt(0,4,0);
-    scene.add(new THREE.AmbientLight(0xffffff,0.7));
-    const dl=new THREE.DirectionalLight(0xffffff,0.7);dl.position.set(20,30,20);dl.castShadow=true;scene.add(dl);
+    const scene=new THREE.Scene();scene.background=new THREE.Color(0xEAF2FB);
+    const camera=new THREE.PerspectiveCamera(48,W/H,0.1,3000);
+    scene.add(new THREE.AmbientLight(0xffffff,0.82));
+    const dl=new THREE.DirectionalLight(0xffffff,0.5);dl.position.set(1,2,1.3);scene.add(dl);
+    const dl2=new THREE.DirectionalLight(0xffffff,0.22);dl2.position.set(-1.2,1,-1);scene.add(dl2);
     const controls=new THREE.OrbitControls(camera,renderer.domElement);
-    controls.enableDamping=true;controls.dampingFactor=0.05;controls.minDistance=3;controls.maxDistance=120;controls.maxPolarAngle=Math.PI/2+0.1;
-    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(200,200),new THREE.MeshLambertMaterial({color:0xD1FAE5}));
-    gnd.rotation.x=-Math.PI/2;gnd.receiveShadow=true;scene.add(gnd);
-    const{config:cfg,elements:els}=project;
-    const{eixos,vaos=1,aguas=2}=cfg;
-    const spX=parseFloat(cfg.vaoComprimento)||6,spZ=parseFloat(cfg.largura)||20;
-    const hC=parseFloat(cfg.alturaColuna)||8,hR=hC*0.35;
-    const meshMap={};
-    const mat=c=>new THREE.MeshLambertMaterial({color:c});
-    const hex=s=>parseInt(SCOR[s].slice(1),16);
-    Object.values(els).filter(e=>e.type==='pilar').forEach(el=>{
-      const x=(el.axis-1)*spX-(eixos-1)*spX/2,z=el.linha*(spZ/vaos)-spZ/2;
-      const m=new THREE.Mesh(new THREE.BoxGeometry(0.35,hC,0.35),mat(hex(el.status)));
-      m.position.set(x,hC/2,z);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
-    });
-    for(let e=1;e<=eixos;e++){
-      for(let v=1;v<=vaos;v++){
-        const id=`TS_E${e}_V${v}`,el=els[id];if(!el)continue;
-        const x=(e-1)*spX-(eixos-1)*spX/2,z0=-spZ/2+(v-1)*(spZ/vaos),z1=z0+spZ/vaos,zM=(z0+z1)/2;
-        const pts=[new THREE.Vector3(x,hC,z0),aguas===2?new THREE.Vector3(x,hC+hR,zM):new THREE.Vector3(x,hC+hR,z1),new THREE.Vector3(x,hC,z1),new THREE.Vector3(x,0,z1),new THREE.Vector3(x,0,z0),new THREE.Vector3(x,hC,z0),new THREE.Vector3(x,0,z1),new THREE.Vector3(x,hC,z1),aguas===2?new THREE.Vector3(x,hC+hR,zM):new THREE.Vector3(x,hC+hR,z1),new THREE.Vector3(x,hC,z0),new THREE.Vector3(x,0,z0),new THREE.Vector3(x,hC,z0)];
-        const geo=new THREE.BufferGeometry().setFromPoints(pts);
-        const ln=new THREE.Line(geo,new THREE.LineBasicMaterial({color:hex(el.status),linewidth:2}));
-        scene.add(ln);meshMap[el.id]=ln;
+    controls.enableDamping=false;controls.minDistance=4;controls.maxDistance=600;controls.maxPolarAngle=Math.PI/2+0.04;
+
+    // Dimensões (reaproveita config; vãos de telha = eixos-1)
+    const eixos=+cfg.eixos||2, NB=Math.max(1,eixos-1);
+    const spX=parseFloat(cfg.vaoComprimento)||6;
+    const spZ=parseFloat(cfg.largura)||18;
+    const hC=parseFloat(cfg.alturaColuna)||8, hR=hC*0.35;
+    const L=NB*spX, X0=-L/2, zL=-spZ/2, zR=spZ/2;
+    const lantW=Math.max(1.2,spZ*0.16);
+    const lantSideH=Math.max(0.8,hR*0.55), lantCap=Math.max(0.6,hR*0.42);
+    const yEave=hC, yRidge=hC+hR, yLantTop=yRidge+lantSideH, yLantRidge=yLantTop+lantCap;
+    const hexN=h=>parseInt(h.slice(1),16);
+    const AZUL=hexN(COR_TELHA_AZUL), METAL=hexN(COR_METALICA), REDE=hexN(COR_REDE);
+    const NF=(project.telhas&&+project.telhas.nFrontal)||NF_DEFAULT;
+    const lFrom=1+LANT_MARGIN, lTo=NB-LANT_MARGIN, xL0=X0+(lFrom-1)*spX, xL1=X0+lTo*spX; // extensão do lanternin (recuado 1 vão/ponta)
+
+    // Chão + enquadramento
+    const gnd=new THREE.Mesh(new THREE.PlaneGeometry(L*2.4,spZ*3.4),new THREE.MeshLambertMaterial({color:0xDDE7D8}));
+    gnd.rotation.x=-Math.PI/2;gnd.position.y=-0.02;scene.add(gnd);
+    const diag=Math.max(L,spZ);
+    camera.position.set(L*0.42+spZ*0.7, hC*1.5+diag*0.4, spZ*1.5+diag*0.22);
+    controls.target.set(0,hC*0.55,0);
+
+    const stripMap={}, frontMap={};
+    // telha inclinada (cobertura/lanternin) — largura em X
+    const ramp=(x,w,z0,y0,z1,y1)=>{
+      const dz=z1-z0,dy=y1-y0,len=Math.hypot(dz,dy);
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(w,len),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.x=Math.atan2(dz,dy);m.position.set(x,(y0+y1)/2,(z0+z1)/2);scene.add(m);return m;
+    };
+    // telha vertical de parede — largura em X, no plano Z=const
+    const wall=(x,w,z,y0,y1)=>{
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(w,y1-y0),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.position.set(x,(y0+y1)/2,z);scene.add(m);return m;
+    };
+    const sw=spX/TILES_PER_BAY, gap=0.06;
+    for(let b=1;b<=NB;b++){
+      const xb0=X0+(b-1)*spX;
+      for(let j=0;j<TILES_PER_BAY;j++){
+        const xc=xb0+(j+0.5)*sw, w=sw*(1-gap);
+        stripMap[`cobEsq_${b}_${j}`]=ramp(xc,w, zL,yEave, -lantW/2,yRidge);
+        stripMap[`cobDir_${b}_${j}`]=ramp(xc,w, zR,yEave,  lantW/2,yRidge);
+        // lanternin: 1 telha cobre as duas águas pequenas do monitor (só nos vãos centrais)
+        if(hasLant(cfg,b)){
+          stripMap[`lant_${b}_${j}`] =ramp(xc,w, -lantW/2,yLantTop, 0,yLantRidge);
+          stripMap[`lant2_${b}_${j}`]=ramp(xc,w,  lantW/2,yLantTop, 0,yLantRidge);
+        }
+        stripMap[`fechDir_${b}_${j}`]=wall(xc,w, zL, 0.05, hC);  // fechamento (azul) na parede esquerda
       }
     }
-    Object.values(els).filter(e=>e.type==='tc').forEach(el=>{
-      const x0=(el.axisFrom-1)*spX-(eixos-1)*spX/2,x1=(el.axisTo-1)*spX-(eixos-1)*spX/2,cx=(x0+x1)/2;
-      const halfSpan=spZ/(vaos*2),frac=el.pos/(cfg.nTC+1);
-      const zTC=el.agua===1?-halfSpan+frac*halfSpan:halfSpan-frac*halfSpan;
-      const yTC=hC+hR*(1-(Math.abs(zTC)/halfSpan));
-      const m=new THREE.Mesh(new THREE.BoxGeometry(spX,0.12,0.12),mat(hex(el.status)));
-      m.position.set(cx,Math.max(hC,yTC),zTC);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
-    });
-    Object.values(els).filter(e=>e.type==='tf').forEach(el=>{
-      const x0=(el.axisFrom-1)*spX-(eixos-1)*spX/2,x1=(el.axisTo-1)*spX-(eixos-1)*spX/2,cx=(x0+x1)/2;
-      const zTF=el.side==='LE'?-spZ/2:spZ/2,yTF=hC*(1-el.pos/(cfg.nTF+1));
-      const m=new THREE.Mesh(new THREE.BoxGeometry(spX,0.12,0.12),mat(hex(el.status)));
-      m.position.set(cx,Math.max(0.1,yTF),zTF);m.castShadow=true;scene.add(m);meshMap[el.id]=m;
-    });
-    if(aguas===2){
-      const hw=spZ/2,sl=Math.sqrt(hw**2+hR**2);
-      for(let e=1;e<eixos;e++){
-        const x0=(e-1)*spX-(eixos-1)*spX/2,cx=x0+spX/2;
-        [-1,1].forEach(sign=>{
-          const m=new THREE.Mesh(new THREE.PlaneGeometry(spX,sl),new THREE.MeshLambertMaterial({color:0xE2E8F0,transparent:true,opacity:0.25,side:THREE.DoubleSide}));
-          m.position.set(cx,hC+hR/2,sign*hw/2);m.rotation.x=-sign*(Math.PI/2-Math.atan2(hR,hw));scene.add(m);
-        });
-      }
+    // Lanternin recuado 1 vão/ponta: clerestório (janelas) + empenas de ponta + tampa nos vãos das pontas
+    if(lTo>=lFrom){
+      [-lantW/2,lantW/2].forEach(zc=>{
+        const m=new THREE.Mesh(new THREE.PlaneGeometry(xL1-xL0,lantSideH),new THREE.MeshLambertMaterial({color:0x2B3A4A,transparent:true,opacity:0.6,side:THREE.DoubleSide}));
+        m.position.set((xL0+xL1)/2,(yRidge+yLantTop)/2,zc);scene.add(m);
+      });
+      [xL0,xL1].forEach(x=>{  // empena triangular fechando a ponta do monitor
+        const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x,yRidge,-lantW/2),new THREE.Vector3(x,yRidge,lantW/2),new THREE.Vector3(x,yLantRidge,0)]);
+        g.setIndex([0,1,2]);g.computeVertexNormals();
+        scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide})));
+      });
     }
-    threeRef.current={renderer,scene,camera,controls,meshMap};builtFor.current=project.id;
-    let raf;const loop=()=>{raf=requestAnimationFrame(loop);controls.update();renderer.render(scene,camera);};loop();
-    const onResize=()=>{const nW=container.clientWidth;camera.aspect=nW/H;camera.updateProjectionMatrix();renderer.setSize(nW,H);};
-    window.addEventListener('resize',onResize);threeRef.current.cleanup=()=>{cancelAnimationFrame(raf);window.removeEventListener('resize',onResize);};
-  },[project.id]);
-  useEffect(()=>{buildScene();return()=>{if(threeRef.current?.cleanup)threeRef.current.cleanup();};},[buildScene]);
-  useEffect(()=>{
-    if(!threeRef.current||builtFor.current!==project.id)return;
-    const{meshMap,renderer,scene,camera}=threeRef.current;
-    Object.values(project.elements).forEach(el=>{const m=meshMap[el.id];if(!m)return;const c=parseInt(SCOR[el.status].slice(1),16);if(m.material)m.material.color.setHex(c);});
-    renderer.render(scene,camera);
-  },[project.elements,project.id]);
+    for(let b=1;b<=NB;b++){  // tampa plana na cumeeira dos vãos sem lanternin (fecha a fresta)
+      if(hasLant(cfg,b))continue;
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.99,lantW),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.x=-Math.PI/2;m.position.set(X0+(b-1)*spX+spX/2,yRidge,0);scene.add(m);
+    }
+    // Parede DIREITA (Z=zR): metálica, com aberturas de docas (g.8/h.9) — sem avanço
+    const dockBays=new Set([Math.round(NB*0.28),Math.round(NB*0.55),NB]);  // última doca no último vão
+    for(let b=1;b<=NB;b++){
+      if(dockBays.has(b))continue;
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(spX*0.98,hC),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.position.set(X0+(b-1)*spX+spX/2,hC/2,zR);scene.add(m);
+    }
+    // Oitão frontal (X0): telhas substituídas, altura acompanha a empena. Fundo (X0+L) fica aberto. Docas inalteradas.
+    const gY=z=>{const az=Math.min(spZ/2,Math.abs(z));return yEave+(yRidge+lantCap*0.6-yEave)*(1-az/(spZ/2));};
+    const fW=spZ/NF, yBase=hC*0.6;
+    for(let j=0;j<NF;j++){
+      const zc=zL+(j+0.5)*fW, yTop=gY(zc), h=Math.max(0.4,yTop-yBase);
+      const m=new THREE.Mesh(new THREE.PlaneGeometry(fW*0.94,h),new THREE.MeshLambertMaterial({color:METAL,side:THREE.DoubleSide}));
+      m.rotation.y=Math.PI/2;m.position.set(X0-0.06,(yBase+yTop)/2,zc);scene.add(m);frontMap[j]=m;
+    }
+    // Contornos (definição)
+    const line=(a,b,c=0x334155)=>{const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(...a),new THREE.Vector3(...b)]);scene.add(new THREE.Line(g,new THREE.LineBasicMaterial({color:c})));};
+    line([X0,yEave,zL],[X0+L,yEave,zL]); line([X0,yEave,zR],[X0+L,yEave,zR]);
+    line([X0,yRidge,-lantW/2],[X0+L,yRidge,-lantW/2]); line([X0,yRidge,lantW/2],[X0+L,yRidge,lantW/2]);
+    if(lTo>=lFrom){
+      line([xL0,yLantTop,-lantW/2],[xL1,yLantTop,-lantW/2]); line([xL0,yLantTop,lantW/2],[xL1,yLantTop,lantW/2]);
+      line([xL0,yLantRidge,0],[xL1,yLantRidge,0]);
+    }
+    [[X0,zL],[X0,zR],[X0+L,zL],[X0+L,zR]].forEach(([x,z])=>line([x,0,z],[x,yEave,z]));
+
+    // Rede (c.4) — dinâmica, esticada com barriga
+    let netMeshes=[];
+    const clearNets=()=>{netMeshes.forEach(m=>{scene.remove(m);m.geometry.dispose();m.material.dispose();});netMeshes=[];};
+    const addNet=b=>{
+      const xb0=X0+(b-1)*spX, xb1=xb0+spX, segX=5,segZ=9, sag=Math.min(1.4,spX*0.15+0.5), yT=yEave-0.4;
+      const Y=(i,j)=>yT-sag*(1-Math.pow(2*i/segX-1,2))*(1-Math.pow(2*j/segZ-1,2));
+      const PX=i=>xb0+(xb1-xb0)*i/segX, PZ=j=>zL+(zR-zL)*j/segZ;
+      const verts=[];
+      for(let i=0;i<segX;i++)for(let j=0;j<segZ;j++){
+        const ax=PX(i),bx=PX(i+1),az=PZ(j),bz=PZ(j+1);
+        verts.push(ax,Y(i,j),az, bx,Y(i+1,j),az, bx,Y(i+1,j+1),bz, ax,Y(i,j),az, bx,Y(i+1,j+1),bz, ax,Y(i,j+1),bz);
+      }
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));g.computeVertexNormals();
+      const surf=new THREE.Mesh(g,new THREE.MeshBasicMaterial({color:REDE,transparent:true,opacity:0.28,side:THREE.DoubleSide,depthWrite:false}));
+      scene.add(surf);netMeshes.push(surf);
+      const lp=[];
+      for(let i=0;i<=segX;i++)for(let j=0;j<segZ;j++)lp.push(PX(i),Y(i,j),PZ(j), PX(i),Y(i,j+1),PZ(j+1));
+      for(let j=0;j<=segZ;j++)for(let i=0;i<segX;i++)lp.push(PX(i),Y(i,j),PZ(j), PX(i+1),Y(i+1,j),PZ(j));
+      const lg=new THREE.BufferGeometry();lg.setAttribute('position',new THREE.Float32BufferAttribute(lp,3));
+      const lines=new THREE.LineSegments(lg,new THREE.LineBasicMaterial({color:REDE}));scene.add(lines);netMeshes.push(lines);
+    };
+
+    const paint=(m,on)=>{if(!m)return;m.material.color.setHex(on?AZUL:METAL);m.material.transparent=!on;m.material.opacity=on?1:0.82;};
+    const applyTelhas=telhas=>{
+      const t=telhas||{};
+      for(let b=1;b<=NB;b++){
+        const bd=ensureBay(t,b);
+        for(let j=0;j<TILES_PER_BAY;j++){
+          paint(stripMap[`cobEsq_${b}_${j}`], j<bd.cobEsq);
+          paint(stripMap[`cobDir_${b}_${j}`], j<bd.cobDir);
+          paint(stripMap[`fechDir_${b}_${j}`],j<bd.fechDir);
+          paint(stripMap[`lant_${b}_${j}`],  j<bd.lant);
+          paint(stripMap[`lant2_${b}_${j}`], j<bd.lant);
+        }
+      }
+      const fr=Math.max(0,Math.min(NF,+t.frontal||0));
+      Object.keys(frontMap).forEach(j=>paint(frontMap[j],+j<fr));
+      clearNets();
+      for(let b=1;b<=NB;b++)if(ensureBay(t,b).rede)addNet(b);
+      renderer.render(scene,camera);
+    };
+    const render=()=>renderer.render(scene,camera);
+    applyTelhas(project.telhas);          // já renderiza ao final
+    controls.addEventListener('change',render);  // render sob demanda (sem loop contínuo)
+    render();
+    const onResize=()=>{const nW=container.clientWidth;camera.aspect=nW/H;camera.updateProjectionMatrix();renderer.setSize(nW,H);render();};
+    window.addEventListener('resize',onResize);
+    threeRef.current={renderer,scene,camera,controls,applyTelhas,cleanup:()=>{controls.removeEventListener('change',render);window.removeEventListener('resize',onResize);clearNets();controls.dispose();}};
+  },[sig]);
+
+  useEffect(()=>{buildScene();return()=>{if(threeRef.current&&threeRef.current.cleanup)threeRef.current.cleanup();};},[buildScene]);
+  useEffect(()=>{if(threeRef.current&&threeRef.current.applyTelhas)threeRef.current.applyTelhas(project.telhas);},[project.telhas]);
+
   return(
     <div>
-      <div ref={mountRef} style={{width:'100%',borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0'}}/>
+      <div ref={mountRef} style={{width:'100%',borderRadius:8,overflow:'hidden',border:'1px solid #E2E8F0',background:'#EAF2FB'}}/>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 justify-center text-xs text-gray-500">
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_TELHA_AZUL,borderRadius:2,display:'inline-block'}}/>Telha instalada · RAL 5003</span>
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_METALICA,borderRadius:2,display:'inline-block'}}/>Metálica / pendente</span>
+        <span className="flex items-center gap-1"><span style={{width:12,height:12,background:COR_REDE,borderRadius:2,display:'inline-block'}}/>Rede instalada</span>
+      </div>
       <div className="mt-1 text-xs text-gray-400 text-center">Arraste para girar · Scroll para zoom · Clique direito para mover</div>
     </div>
   );
@@ -604,14 +736,368 @@ function Historico({elements}){
     </div>
   );
 }
+/* ═══════════════ TELHAS — UI ═══════════════ */
+function Bar({pct,c}){
+  return(
+    <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-full rounded-full transition-all" style={{width:`${Math.max(0,Math.min(100,pct))}%`,background:c}}/>
+    </div>
+  );
+}
+function Stepper({val,max,onChange}){
+  return(
+    <div className="flex items-center gap-1 justify-center">
+      <button onClick={()=>onChange(Math.max(0,val-1))} disabled={val<=0}
+        className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold text-lg leading-none disabled:opacity-30 hover:bg-gray-200 flex items-center justify-center select-none">−</button>
+      <span className={`w-9 text-center font-bold tabular-nums ${val>=max?'text-green-600':val>0?'text-blue-700':'text-gray-300'}`}>{val}</span>
+      <button onClick={()=>onChange(Math.min(max,val+1))} disabled={val>=max}
+        className="w-7 h-7 rounded-lg bg-gray-100 text-gray-700 font-bold text-lg leading-none disabled:opacity-30 hover:bg-gray-200 flex items-center justify-center select-none">+</button>
+    </div>
+  );
+}
+function TelhasIndicadores({info}){
+  const locs=[
+    {k:'cobEsq',l:'Cobertura Esq.',c:'#3B82F6'},
+    {k:'cobDir',l:'Cobertura Dir.',c:'#2563EB'},
+    {k:'lant',l:'Lanternin',c:'#8B5CF6'},
+    {k:'fechDir',l:'Fechamento Dir.',c:'#0EA5E9'},
+    {k:'frontal',l:'Frontal',c:'#6366F1'},
+  ];
+  return(
+    <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 mb-3">
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">🧱 Instalação de Telhas</p>
+          <p className="text-xs text-gray-400 mt-0.5">{info.totInst}/{info.totTelhas} telhas · ponderado por tamanho</p>
+        </div>
+        <div className="text-right leading-none">
+          <div className="text-3xl font-extrabold" style={{color:COR_TELHA_AZUL}}>{info.geral}%</div>
+          <div className="text-xs text-gray-400 mt-0.5">avanço geral</div>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
+        {locs.map(L=>(
+          <div key={L.k}>
+            <div className="flex justify-between text-xs mb-0.5"><span className="text-gray-600 font-medium truncate">{L.l}</span><span className="font-bold ml-1" style={{color:L.c}}>{info.pctLoc[L.k]}%</span></div>
+            <Bar pct={info.pctLoc[L.k]} c={L.c}/>
+            <p className="text-xs text-gray-400 mt-0.5">{info.loc[L.k].i}/{info.loc[L.k].t}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+function TabTelhas({project,canEdit,onUpdate}){
+  const info=useMemo(()=>calcTelhas(project),[project.telhas,project.config]);
+  const NB=info.NB, NF=info.NF;
+  const setBay=(b,patch)=>{
+    const telhas=project.telhas||{};
+    const bays={...(telhas.bays||{})};
+    bays[b]={...ensureBay(telhas,b),...patch};
+    onUpdate({...project,telhas:{...telhas,bays}});
+  };
+  const setFrontal=v=>{
+    const telhas=project.telhas||{};
+    onUpdate({...project,telhas:{...telhas,frontal:Math.max(0,Math.min(NF,v)),nFrontal:NF}});
+  };
+  const aplicarTodos=(k,v)=>{
+    const telhas=project.telhas||{};
+    const bays={...(telhas.bays||{})};
+    for(let b=1;b<=NB;b++){
+      if(k==='lant'&&!hasLant(project.config,b))continue;   // lanternin não cobre as pontas
+      bays[b]={...ensureBay(telhas,b),[k]:v};
+    }
+    onUpdate({...project,telhas:{...telhas,bays}});
+  };
+  const zerar=()=>{
+    if(!window.confirm('Zerar a contagem de telhas de todos os vãos? (a rede é mantida)'))return;
+    const telhas=project.telhas||{};
+    const bays={};
+    for(let b=1;b<=NB;b++)bays[b]={cobEsq:0,cobDir:0,lant:0,fechDir:0,rede:ensureBay(telhas,b).rede};
+    onUpdate({...project,telhas:{...telhas,bays,frontal:0}});
+  };
+  return(
+    <div className="space-y-4">
+      <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <p className="text-sm font-bold text-indigo-800">🔷 Oitão Frontal</p>
+          <p className="text-xs text-indigo-500">{info.loc.frontal.i}/{NF} telhas · {info.pctLoc.frontal}%</p>
+        </div>
+        {canEdit
+          ? <Stepper val={info.loc.frontal.i} max={NF} onChange={setFrontal}/>
+          : <div className="w-40"><Bar pct={info.pctLoc.frontal} c="#6366F1"/></div>}
+      </div>
+
+      {canEdit&&(
+        <div className="flex flex-wrap gap-1.5 items-center text-xs">
+          <span className="text-gray-500 font-medium mr-1">Preencher todos os vãos:</span>
+          {TELHA_LOCS.map(L=>(
+            <button key={L.k} onClick={()=>aplicarTodos(L.k,TILES_PER_BAY)}
+              className="px-2 py-1 rounded-lg bg-gray-100 hover:bg-gray-200 font-medium text-gray-700">{L.l} ✓</button>
+          ))}
+          <button onClick={zerar} className="px-2 py-1 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 font-medium ml-auto">Zerar telhas</button>
+        </div>
+      )}
+
+      <div className="overflow-x-auto -mx-1 px-1">
+        <table className="w-full text-sm" style={{borderCollapse:'separate',borderSpacing:'0 5px'}}>
+          <thead>
+            <tr className="text-xs text-gray-500">
+              <th className="text-left px-2 font-semibold">Vão</th>
+              {TELHA_LOCS.map(L=><th key={L.k} className="px-2 text-center font-semibold whitespace-nowrap" style={{color:L.c}}>{L.l}</th>)}
+              <th className="px-2 text-center font-semibold">Rede</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({length:NB},(_,i)=>i+1).map(b=>{
+              const bd=ensureBay(project.telhas||{},b);
+              const lantOk=hasLant(project.config,b);
+              const full=bd.cobEsq>=7&&bd.cobDir>=7&&bd.fechDir>=7&&(!lantOk||bd.lant>=7);
+              return(
+                <tr key={b} className={full?'bg-green-50':'bg-white'} style={{boxShadow:'0 1px 0 #F1F5F9'}}>
+                  <td className="px-2 py-1.5 font-mono font-bold text-gray-600 whitespace-nowrap">E{pad2(b)}–E{pad2(b+1)}</td>
+                  {TELHA_LOCS.map(L=>{
+                    const naLant=L.k==='lant'&&!lantOk;
+                    return(
+                    <td key={L.k} className="px-2 py-1.5 text-center">
+                      {naLant
+                        ? <span className="text-gray-300 text-xs" title="Sem lanternin neste vão">—</span>
+                        : canEdit
+                          ? <Stepper val={bd[L.k]} max={TILES_PER_BAY} onChange={v=>setBay(b,{[L.k]:v})}/>
+                          : <span className={`font-bold tabular-nums ${bd[L.k]>=7?'text-green-600':bd[L.k]>0?'text-blue-700':'text-gray-300'}`}>{bd[L.k]}/7</span>}
+                    </td>
+                    );
+                  })}
+                  <td className="px-2 py-1.5 text-center">
+                    {canEdit
+                      ? <button onClick={()=>setBay(b,{rede:!bd.rede})}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap ${bd.rede?'bg-green-500 text-white shadow-sm':'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}>
+                          {bd.rede?'🕸️ Sim':'—'}
+                        </button>
+                      : <span className={bd.rede?'text-lg':'text-gray-300'}>{bd.rede?'🕸️':'—'}</span>}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-gray-400 text-center">
+        {canEdit?'Cada vão tem 7 telhas por local · toque em − / + para lançar as telhas instaladas':'👁️ Modo visualização — somente leitura'}
+      </p>
+    </div>
+  );
+}
+
+/* ═══════════════ CURVA S ═══════════════ */
+function TabCurvaS({project,obraCode,canEdit}){
+  const[snaps,setSnaps]=useState({});
+  const[saving,setSaving]=useState(false);
+  const[msg,setMsg]=useState('');
+  const[modalOpen,setModalOpen]=useState(false);
+  const[modalVal,setModalVal]=useState('');
+  const today=new Date().toISOString().split('T')[0];
+
+  useEffect(()=>{
+    if(!db||!obraCode)return;
+    const ref=db.ref(`/obras/${obraCode}/snapshots`);
+    ref.on('value',s=>setSnaps(s.val()||{}));
+    return()=>ref.off('value');
+  },[obraCode]);
+
+  const elPct=useMemo(()=>{
+    const els=Object.values(project.elements||{});
+    if(!els.length)return 0;
+    const done=els.filter(e=>e.status==='completo').length;
+    return Math.round(done/els.length*10000)/100;
+  },[project.elements]);
+
+  const abrirModal=()=>{setModalVal(elPct.toFixed(2));setModalOpen(true);};
+
+  const salvar=async()=>{
+    const raw=(modalVal||'').replace(',','.');
+    const v=parseFloat(raw);
+    if(isNaN(v)||v<0||v>100){setMsg('% inválido (0-100)');return;}
+    setSaving(true);
+    await db.ref(`/obras/${obraCode}/snapshots/${today}`).set({pct:v,ts:Date.now()});
+    setSaving(false);setMsg('Registrado ✓');setModalOpen(false);setTimeout(()=>setMsg(''),2500);
+  };
+
+  const TASKS=[
+    {w:1, s:'2026-05-11',e:'2026-05-11'},
+    {w:8, s:'2026-05-15',e:'2026-07-07'},
+    {w:64,s:'2026-05-19',e:'2026-07-16'},
+    {w:20,s:'2026-07-08',e:'2026-08-20'},
+    {w:7, s:'2026-08-21',e:'2026-08-26'},
+    {w:2, s:'2026-08-27',e:'2026-08-31'},
+  ];
+  const START=new Date('2026-05-11');
+  const END=new Date('2026-08-31');
+  const NDAYS=Math.ceil((END-START)/86400000)+1;
+
+  const planned=useMemo(()=>{
+    const raw=[];
+    for(let d=0;d<NDAYS;d++){
+      const dt=new Date(START.getTime()+d*86400000);
+      let p=0;
+      for(const t of TASKS){
+        const ts=new Date(t.s),te=new Date(t.e);
+        if(dt>=ts&&dt<=te) p+=t.w/((te-ts)/86400000+1);
+      }
+      raw.push(p);
+    }
+    const tot=raw.reduce((a,b)=>a+b,0),fac=100/tot;
+    let sum=0;
+    return raw.map(p=>{sum+=p*fac;return Math.round(sum*100)/100;});
+  },[]);
+
+  const realPts=useMemo(()=>Object.entries(snaps).map(([d,v])=>({date:d,pct:v.pct})).sort((a,b)=>a.date.localeCompare(b.date)),[snaps]);
+
+  const dIdx=d=>Math.max(0,Math.min(NDAYS-1,Math.ceil((new Date(d)-START)/86400000)));
+  const todayPlan=planned[dIdx(today)]||0;
+  const lastReal=realPts.length?realPts[realPts.length-1].pct:0;
+  const vari=lastReal-todayPlan;
+
+  const CW=560,CH=200;
+  const px=d=>(dIdx(d)/(NDAYS-1))*(CW-52)+36;
+  const py=p=>CH-24-(p/100)*(CH-44);
+  const planPath=planned.filter((_,i)=>i%3===0).map((p,i)=>`${i===0?'M':'L'}${36+(i*3/(NDAYS-1))*(CW-52)},${py(p)}`).join('');
+  const realPath=realPts.map((pt,i)=>`${i===0?'M':'L'}${px(pt.date)},${py(pt.pct)}`).join('');
+  const todayX=px(today);
+  const meses=['mai','jun','jul','ago'];
+  const mesMarks=meses.map((_,i)=>{const d=new Date(2026,4+i,1);return{x:px(d.toISOString().split('T')[0]),l:meses[i]};});
+
+  return(
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-blue-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-extrabold text-blue-700">{todayPlan.toFixed(2)}%</div>
+          <div className="text-xs text-blue-500 mt-0.5">Planejado acum.</div>
+        </div>
+        <div className="bg-green-50 rounded-xl p-3 text-center">
+          <div className="text-2xl font-extrabold text-green-700">{lastReal.toFixed(2)}%</div>
+          <div className="text-xs text-green-500 mt-0.5">Real registrado</div>
+        </div>
+        <div className={`rounded-xl p-3 text-center ${vari>=0?'bg-green-50':'bg-red-50'}`}>
+          <div className={`text-2xl font-extrabold ${vari>=0?'text-green-700':'text-red-600'}`}>{vari>=0?'+':''}{vari.toFixed(2)}%</div>
+          <div className="text-xs text-gray-500 mt-0.5">Variação</div>
+        </div>
+      </div>
+
+      <div className="bg-white border rounded-xl p-3 overflow-x-auto">
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Curva S — Avanço Físico Geral</p>
+        <svg viewBox={`0 0 ${CW} ${CH}`} style={{width:'100%',maxWidth:CW,height:'auto'}}>
+          {[0,25,50,75,100].map(p=>(
+            <g key={p}>
+              <line x1="36" x2={CW-16} y1={py(p)} y2={py(p)} stroke="#E5E7EB" strokeWidth="1"/>
+              <text x="32" y={py(p)+4} textAnchor="end" fontSize="9" fill="#9CA3AF">{p}%</text>
+            </g>
+          ))}
+          {mesMarks.map(m=>(
+            <g key={m.l}>
+              <line x1={m.x} x2={m.x} y1={py(0)} y2={py(0)+6} stroke="#D1D5DB" strokeWidth="1"/>
+              <text x={m.x} y={py(0)+16} textAnchor="middle" fontSize="9" fill="#6B7280">{m.l}</text>
+            </g>
+          ))}
+          {planPath&&<path d={planPath} fill="none" stroke="#2563EB" strokeWidth="2"/>}
+          {realPath&&<path d={realPath} fill="none" stroke="#16A34A" strokeWidth="2.5"/>}
+          {realPts.map(pt=><circle key={pt.date} cx={px(pt.date)} cy={py(pt.pct)} r="3.5" fill="#16A34A"/>)}
+          <line x1={todayX} x2={todayX} y1={18} y2={py(0)} stroke="#F97316" strokeWidth="1.5" strokeDasharray="4,3"/>
+          <text x={todayX} y={14} textAnchor="middle" fontSize="8" fill="#F97316">hoje</text>
+          <rect x="38" y="8" width="12" height="3" fill="#2563EB" rx="1.5"/>
+          <text x="53" y="12" fontSize="8" fill="#2563EB">Planejado</text>
+          <rect x="105" y="8" width="12" height="3" fill="#16A34A" rx="1.5"/>
+          <text x="120" y="12" fontSize="8" fill="#16A34A">Real</text>
+        </svg>
+      </div>
+
+      {canEdit&&(
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-bold text-amber-800">📋 Avanço hoje — {today.split('-').reverse().join('/')}</p>
+              <p className="text-xs text-gray-500 mt-0.5">Auto-elementos: {elPct.toFixed(2)}%</p>
+              {msg&&<p className="text-sm text-green-700 font-medium mt-1">{msg}</p>}
+            </div>
+            <button onClick={abrirModal} disabled={!db}
+              className="px-5 py-2 bg-amber-600 text-white rounded-lg font-bold hover:bg-amber-700 disabled:opacity-60 text-sm">
+              ✏️ Registrar avanço
+            </button>
+          </div>
+        </div>
+      )}
+
+      {modalOpen&&(
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:9999,display:'flex',alignItems:'flex-end',justifyContent:'center'}}
+          onClick={()=>setModalOpen(false)}>
+          <div style={{background:'white',borderRadius:'20px 20px 0 0',padding:'28px 24px',width:'100%',maxWidth:480,boxShadow:'0 -4px 32px rgba(0,0,0,0.18)'}}
+            onClick={e=>e.stopPropagation()}>
+            <p style={{fontWeight:700,fontSize:15,color:'#92400E',marginBottom:4}}>📋 Registrar avanço</p>
+            <p style={{fontSize:12,color:'#6B7280',marginBottom:20}}>{today.split('-').reverse().join('/')} — Auto-elementos: {elPct.toFixed(2)}%</p>
+            <input
+              autoFocus
+              type="text"
+              inputMode="decimal"
+              pattern="[0-9]*[.,]?[0-9]*"
+              value={modalVal}
+              onChange={e=>setModalVal(e.target.value.replace(/[^0-9.,]/g,''))}
+              onKeyDown={e=>e.key==='Enter'&&salvar()}
+              placeholder="Ex: 75.50"
+              style={{width:'100%',fontSize:36,fontWeight:700,textAlign:'center',border:'2px solid #F59E0B',borderRadius:12,padding:'14px 8px',boxSizing:'border-box',outline:'none',color:'#1F2937'}}
+            />
+            <p style={{fontSize:11,color:'#9CA3AF',textAlign:'center',marginTop:6}}>Digite o % realizado (0 a 100)</p>
+            <div style={{display:'flex',gap:12,marginTop:20}}>
+              <button onClick={()=>setModalOpen(false)}
+                style={{flex:1,padding:'12px',border:'1px solid #D1D5DB',borderRadius:12,background:'white',fontWeight:600,fontSize:14,color:'#374151',cursor:'pointer'}}>
+                Cancelar
+              </button>
+              <button onClick={salvar} disabled={saving}
+                style={{flex:2,padding:'12px',background:saving?'#9CA3AF':'#D97706',color:'white',borderRadius:12,fontWeight:700,fontSize:16,border:'none',cursor:saving?'not-allowed':'pointer'}}>
+                {saving?'Salvando…':'Confirmar ✓'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border rounded-xl overflow-hidden">
+        <div className="bg-gray-50 px-4 py-2 border-b">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Histórico de Registros</p>
+        </div>
+        {!realPts.length?(
+          <p className="text-center text-gray-400 py-8 text-sm">Nenhum registro ainda.</p>
+        ):(
+          <div className="divide-y max-h-72 overflow-y-auto">
+            {[...realPts].reverse().map(pt=>{
+              const plan=planned[dIdx(pt.date)]||0;
+              const v=pt.pct-plan;
+              return(
+                <div key={pt.date} className="flex items-center justify-between px-4 py-2.5 hover:bg-gray-50 text-sm">
+                  <span className="font-mono text-gray-600">{pt.date.split('-').reverse().join('/')}</span>
+                  <div className="flex gap-4 items-center">
+                    <span className="text-blue-600">Plan: {plan.toFixed(2)}%</span>
+                    <span className="font-bold text-green-700">Real: {pt.pct.toFixed(2)}%</span>
+                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${v>=0?'bg-green-100 text-green-700':'bg-red-100 text-red-600'}`}>{v>=0?'+':''}{v.toFixed(2)}%</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════ PAINEL DE PROJETO ═══════════════ */
-function PainelProjeto({project,role='viewer',onBack,onUpdate}){
-  const[tab,setTab]=useState('lateral');
+function PainelProjeto({project,role='viewer',obraCode,onBack,onUpdate}){
+  const[tab,setTab]=useState('3d');
   const[selId,setSelId]=useState(null);
   const[showLote,setShowLote]=useState(false);
   const[showConfig,setShowConfig]=useState(false);
   const selEl=selId?project.elements[selId]:null;
   const stats=useMemo(()=>calcStats(project.elements),[project.elements]);
+  const telhasInfo=useMemo(()=>calcTelhas(project),[project.telhas,project.config]);
   const canEdit=role==='apontador'||role==='admin';
   const isAdmin=role==='admin';
 
@@ -639,7 +1125,7 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
 
   const pct=stats.pct;
   const barClr=pct===100?'#22C55E':pct>60?'#3B82F6':pct>30?'#F97316':'#FBBF24';
-  const tabs=[{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'3d',l:'3D'},{id:'hist',l:'Histórico'}];
+  const tabs=[{id:'3d',l:'🏗️ 3D'},{id:'telhas',l:'🧱 Telhas'},{id:'lateral',l:'Vista Lateral'},{id:'planta',l:'Planta'},{id:'hist',l:'Histórico'},{id:'curva',l:'📈 Curva S'}];
   const roleBadge={viewer:{l:'👁️ Visitante',c:'bg-gray-100 text-gray-600'},apontador:{l:'✏️ Apontador',c:'bg-amber-100 text-amber-700'},admin:{l:'⚙️ Gestor',c:'bg-blue-100 text-blue-700'}};
   const badge=roleBadge[role];
 
@@ -652,7 +1138,8 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
             <div className="flex items-center gap-2 flex-wrap">
               <h1 className="font-bold text-gray-900 truncate text-base sm:text-lg">{project.name}</h1>
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${badge.c}`}>{badge.l}</span>
-              <span className="text-xs font-semibold text-gray-500">{pct}% concluído</span>
+              <span className="text-xs font-bold px-2 py-0.5 rounded-full text-white" style={{background:COR_TELHA_AZUL}}>🧱 {telhasInfo.geral}% telhas</span>
+              <span className="text-xs font-medium text-gray-400">🏗️ {pct}% estrutura</span>
             </div>
             <p className="text-xs text-gray-500">{project.config.eixos} eixos · {project.config.vaos} nave · {project.config.aguas} águas · {stats.tot} elementos</p>
           </div>
@@ -666,6 +1153,8 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
       </div>
 
       <div className="max-w-5xl mx-auto px-3 pt-3 pb-8">
+        <TelhasIndicadores info={telhasInfo}/>
+        <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2 mt-4">🏗️ Estrutura — lixamento / pintura</p>
         <div className="grid grid-cols-5 gap-1.5 mb-3">
           {SORD.map(s=>(
             <div key={s} className="bg-white rounded-xl p-2 shadow-sm border border-gray-100 text-center">
@@ -714,7 +1203,7 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
           ))}
         </div>
         <div className="bg-white rounded-b-xl shadow-sm p-3 sm:p-4">
-          {tab!=='hist'&&(
+          {(tab==='lateral'||tab==='planta')&&(
             <div className="flex flex-wrap gap-3 mb-3 pb-3 border-b border-gray-100">
               {SORD.map(s=>(
                 <div key={s} className="flex items-center gap-1.5 text-xs text-gray-600">
@@ -723,10 +1212,12 @@ function PainelProjeto({project,role='viewer',onBack,onUpdate}){
               ))}
             </div>
           )}
+          {tab==='3d'&&<Vista3D project={project}/>}
+          {tab==='telhas'&&<TabTelhas project={project} canEdit={canEdit} onUpdate={onUpdate}/>}
           {tab==='lateral'&&<VistaLateral project={project} selectedId={selId} onSelect={setSelId}/>}
           {tab==='planta'&&<Planta2D project={project} selectedId={selId} onSelect={setSelId}/>}
-          {tab==='3d'&&<Vista3D project={project}/>}
           {tab==='hist'&&<Historico elements={project.elements}/>}
+          {tab==='curva'&&<TabCurvaS project={project} obraCode={obraCode} canEdit={canEdit}/>}
         </div>
       </div>
 
@@ -910,7 +1401,8 @@ function LoginScreen({onLogin,onNew}){
       </a>
       <div className="text-5xl mb-2">🏗️</div>
       <h1 className="text-2xl font-extrabold">GalpãoTrack</h1>
-      <p className="text-blue-200 text-sm mt-1">Controle de Lixamento e Pintura</p>
+      <p className="text-blue-200 text-sm mt-1">Estrutura · Telhas · Avanço de Obra</p>
+      <p className="text-blue-300/70 text-xs mt-0.5">v{VERSION} · Fase Telhas</p>
     </div>
   );
 
@@ -940,6 +1432,10 @@ function LoginScreen({onLogin,onNew}){
                 ✏️ Apontador
               </button>
             </div>
+            <button onClick={()=>onLogin(foundCode,'viewer',foundData)}
+              className="w-full mt-3 py-2.5 bg-gray-100 text-gray-700 rounded-xl font-bold hover:bg-gray-200 border border-gray-200">
+              👁️ Entrar como Visitante <span className="font-normal text-gray-400 text-sm">(sem senha)</span>
+            </button>
             <button onClick={()=>{setStep(1);setPin('');setError('');}} className="w-full mt-3 text-sm text-gray-500 hover:underline">← Voltar</button>
           </div>
         </div>
@@ -1003,14 +1499,14 @@ function App(){
   };
 
   const createProject=async(p)=>{
-    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt,pinAdmin:p.pinAdmin||'',pinApontador:p.pinApontador||''};
+    const obraObj={name:p.name,config:p.config,elements:p.elements,createdAt:p.createdAt,pinAdmin:p.pinAdmin||'',pinApontador:p.pinApontador||'',telhas:{bays:{},frontal:0,nFrontal:NF_DEFAULT}};
     if(db)await db.ref(`/obras/${p.code}`).set(obraObj);
     setShowNew(false);
     handleLogin(p.code,'admin',obraObj);
   };
 
   if(view==='project'&&project){
-    return<PainelProjeto project={project} role={role} onBack={()=>setView('login')} onUpdate={updateProject}/>;
+    return<PainelProjeto project={project} role={role} obraCode={obraCode} onBack={()=>setView('login')} onUpdate={updateProject}/>;
   }
 
   return(
