@@ -78,6 +78,22 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
 .task-tbl td{padding:9px 12px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
 .task-tbl tr:hover td{background:rgba(255,255,255,.02)}
 .task-tbl .grp td{background:rgba(245,184,0,.04);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.82rem;letter-spacing:.05em}
+.plano-wrap{overflow-x:auto;margin-top:8px}
+.plano-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+.plano-tbl th{background:rgba(245,184,0,.08);color:var(--yellow);font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;padding:10px 12px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+.plano-tbl td{padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.plano-tbl tr:hover td{background:rgba(255,255,255,.02)}
+.plano-inp{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:5px;padding:5px 8px;color:var(--text);font-size:.8rem;font-family:'Barlow',sans-serif;width:100%;transition:border-color .2s;box-sizing:border-box}
+.plano-inp:focus{outline:none;border-color:rgba(245,184,0,.45);background:rgba(0,0,0,.2)}
+.plano-inp[type=date]{width:148px;color-scheme:dark;cursor:pointer}
+.plano-inp[type=number]{text-align:center;width:80px}
+.plano-sel{background:rgba(15,20,30,.9);border:1px solid rgba(255,255,255,.12);border-radius:5px;padding:5px 8px;color:var(--text);font-size:.8rem;cursor:pointer;width:100%}
+.plano-sel:focus{outline:none;border-color:rgba(245,184,0,.4)}
+.plano-late-tag{display:inline-block;font-family:'Barlow Condensed',sans-serif;font-size:.65rem;font-weight:700;padding:2px 7px;border-radius:10px;letter-spacing:.06em;margin-top:3px;background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.btn-add-plano{font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;padding:8px 18px;border:1px solid rgba(245,184,0,.4);background:rgba(245,184,0,.07);color:var(--yellow);border-radius:6px;cursor:pointer;transition:all .2s}
+.btn-add-plano:hover{background:var(--yellow);color:var(--dark)}
+.plano-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px}
+.plano-empty{text-align:center;color:var(--dim);padding:40px 20px;font-size:.88rem}
 .pct-bar{width:90px;height:7px;background:rgba(255,255,255,.06);border-radius:4px;overflow:hidden;display:inline-block;vertical-align:middle;margin-right:6px}
 .pct-fill{height:100%;border-radius:4px}
 .badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:.7rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
@@ -165,6 +181,7 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
     <button class="tab-btn" onclick="showTab('cronograma')">Cronograma</button>
     <button class="tab-btn" onclick="showTab('tarefas')">Tarefas</button>
     <button class="tab-btn" onclick="showTab('curvas')">Curva S</button>
+    <button class="tab-btn" onclick="showTab('plano')">Plano de Ação</button>
     <a href="./galpaotrack.html" target="_blank" class="tab-btn" style="text-decoration:none;color:var(--amber);border-bottom-color:transparent" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--amber)'">🏭 GalpãoTrack ↗</a>
   </div>
 
@@ -256,6 +273,31 @@ main{padding:20px 24px;max-width:1500px;margin:0 auto}
           </tr>
         </thead>
         <tbody id="curva-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div id="tab-plano" class="tab-content">
+    <div class="plano-header">
+      <div class="sec-title" style="margin:0;margin-top:4px">Plano de Ação — Ações Corretivas</div>
+      <button class="btn-add-plano" onclick="addPlanoItem()">+ Nova Ação</button>
+    </div>
+    <div class="plano-wrap">
+      <table class="plano-tbl">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th style="min-width:180px">O Que</th>
+            <th style="min-width:180px">Como</th>
+            <th style="width:154px">Quando</th>
+            <th style="min-width:130px">Quem</th>
+            <th style="width:95px">Impacto (%)</th>
+            <th style="width:145px">Status</th>
+            <th style="min-width:200px">Observação</th>
+            <th style="width:36px"></th>
+          </tr>
+        </thead>
+        <tbody id="plano-tbody"></tbody>
       </table>
     </div>
   </div>
@@ -503,6 +545,7 @@ function DEFAULT_STATE(){
     vaos,
     phases,
     curvas: JSON.parse(JSON.stringify(DEFAULT_CURVAS)),
+    plano: [],
     indicadores:{
       dataRef:TODAY,
       fPlanSem:0, fRealSem:0, fPlanAcum:0, fRealAcum:0,
@@ -561,6 +604,7 @@ function showTab(id){
   document.getElementById('tab-'+id).classList.add('active');
   if(id==='curvas'){setTimeout(renderCurvaS,50);}
   if(id==='cronograma'){renderGantt();}
+  if(id==='plano'){renderPlano();}
 }
 
 // ============================
@@ -1167,6 +1211,65 @@ function importCurvaCSV(e){
 }
 
 // ============================
+// PLANO DE AÇÃO
+// ============================
+function escHtml(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+
+function renderPlano(){
+  const tbody=document.getElementById('plano-tbody');
+  if(!tbody)return;
+  if(!state.plano)state.plano=[];
+  if(!state.plano.length){
+    tbody.innerHTML='<tr><td colspan="9" class="plano-empty">Nenhuma ação cadastrada. Clique em <b>+ Nova Ação</b> para começar.</td></tr>';
+    return;
+  }
+  tbody.innerHTML=state.plano.map((item,i)=>{
+    const atrasado=item.quando&&item.quando<TODAY&&item.status!=='Concluído'&&item.status!=='Cancelado';
+    const selOpts=['Pendente','Em Andamento','Concluído','Cancelado'].map(s=>`<option value="${s}"${item.status===s?' selected':''}>${s}</option>`).join('');
+    const rowStyle=atrasado?'background:rgba(239,68,68,.04)':'';
+    return `<tr style="${rowStyle}">
+      <td style="color:var(--dim);font-size:.78rem;text-align:center">${i+1}</td>
+      <td><input class="plano-inp" value="${escHtml(item.oque)}" placeholder="Descreva a ação" oninput="updatePlanoItem(${i},'oque',this.value)"></td>
+      <td><input class="plano-inp" value="${escHtml(item.como)}" placeholder="Como será feito" oninput="updatePlanoItem(${i},'como',this.value)"></td>
+      <td>
+        <input class="plano-inp" type="date" value="${item.quando||''}" onchange="updatePlanoItem(${i},'quando',this.value)">
+        ${atrasado?'<div class="plano-late-tag">ATRASADO</div>':''}
+      </td>
+      <td><input class="plano-inp" value="${escHtml(item.quem)}" placeholder="Responsável" oninput="updatePlanoItem(${i},'quem',this.value)"></td>
+      <td><input class="plano-inp" type="number" min="0" max="100" value="${item.impacto??''}" placeholder="0" oninput="updatePlanoItem(${i},'impacto',this.value)"></td>
+      <td><select class="plano-sel" onchange="updatePlanoItem(${i},'status',this.value)">${selOpts}</select></td>
+      <td><input class="plano-inp" value="${escHtml(item.obs)}" placeholder="Observação" oninput="updatePlanoItem(${i},'obs',this.value)"></td>
+      <td><button class="btn-del" onclick="deletePlanoItem(${i})" title="Remover">✕</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function addPlanoItem(){
+  if(!state.plano)state.plano=[];
+  state.plano.push({oque:'',como:'',quando:'',quem:'',impacto:null,status:'Pendente',obs:''});
+  save();renderPlano();
+  // foca o primeiro campo da nova linha
+  setTimeout(()=>{
+    const rows=document.querySelectorAll('#plano-tbody tr');
+    if(rows.length){const inp=rows[rows.length-1].querySelector('.plano-inp');if(inp)inp.focus();}
+  },60);
+}
+
+function updatePlanoItem(i,field,val){
+  if(!state.plano)return;
+  if(field==='impacto')state.plano[i][field]=val===''?null:Math.min(100,Math.max(0,parseInt(val)||0));
+  else state.plano[i][field]=val;
+  save();
+  if(field==='quando'||field==='status')renderPlano();
+}
+
+function deletePlanoItem(i){
+  if(!state.plano)return;
+  state.plano.splice(i,1);
+  save();renderPlano();
+}
+
+// ============================
 // EDIT PANEL
 // ============================
 function openEdit(){
@@ -1246,6 +1349,7 @@ window.onFirebaseUpdate=function(data,isFirst){
   document.getElementById('last-upd').textContent=state._upd?new Date(state._upd).toLocaleString('pt-BR'):'—';
   renderDashboard();renderMapa();renderTarefas();renderIndicadores();renderCurvaS();
   if(document.getElementById('tab-cronograma').classList.contains('active'))renderGantt();
+  if(document.getElementById('tab-plano').classList.contains('active'))renderPlano();
 };
 
 function load(){
