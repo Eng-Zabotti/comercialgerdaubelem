@@ -4,11 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Avanço de Obra — Gerdau Belém</title>
+<meta name="app-build" content="2026-07-09.1">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
 :root{--yellow:#f5b800;--dark:#0d1520;--mid:#111e2e;--panel:#0f2840;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--teal:#14b8a6;--purple:#8b5cf6;--text:#e2e8f0;--dim:#64748b;--border:rgba(245,184,0,0.15)}
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 body{background:var(--dark);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;overflow-x:hidden}
+#nv-banner{position:fixed;left:0;right:0;bottom:0;z-index:99999;background:var(--yellow);color:#0b1220;font-family:'Barlow Condensed',sans-serif;font-weight:700;font-size:1rem;text-transform:uppercase;letter-spacing:.06em;padding:11px 16px;display:flex;align-items:center;justify-content:center;gap:12px;box-shadow:0 -4px 20px rgba(0,0,0,.5);animation:nvUp .35s ease}
+#nv-banner button{font-family:inherit;font-weight:700;text-transform:uppercase;letter-spacing:.04em;border:none;border-radius:8px;padding:6px 14px;cursor:pointer;background:#0b1220;color:var(--yellow)}
+#nv-banner #nv-x{background:transparent;color:#0b1220;padding:6px 10px;font-size:1.05rem}
+@keyframes nvUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
 header{background:linear-gradient(135deg,#0a1628,#0d1f35);border-bottom:2px solid var(--yellow);padding:12px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;position:sticky;top:0;z-index:100;box-shadow:0 4px 20px rgba(0,0,0,.6)}
 .hdr-left{display:flex;align-items:center;gap:14px}
 .proj-title h1{font-family:'Barlow Condensed',sans-serif;font-weight:800;font-size:1.35rem;color:var(--yellow);letter-spacing:.04em;line-height:1.1}
@@ -471,6 +476,40 @@ window.onTelhasGalpao=function(obra){
     if(typeof buildCurvaTable==='function')buildCurvaTable(true);
   }catch(e){console.error('render telhas auto:',e);}
 };
+
+// ============================
+// AVISO DE NOVA VERSÃO — contorna o cache do GitHub Pages/navegador.
+// ⚠️ BUMPAR o content de <meta name="app-build"> a CADA deploy do painel!
+// ============================
+const _BUILD=((document.querySelector('meta[name="app-build"]')||{}).content)||'';
+let _nvSkip='';
+function _bannerNovaVersao(nb){
+  if(document.getElementById('nv-banner'))return;
+  const b=document.createElement('div');b.id='nv-banner';
+  b.innerHTML='🔄 Nova versão disponível &nbsp;<button id="nv-go">Recarregar agora</button><button id="nv-x" title="Depois">✕</button>';
+  document.body.appendChild(b);
+  document.getElementById('nv-go').onclick=()=>location.reload();
+  document.getElementById('nv-x').onclick=()=>{_nvSkip=nb;b.remove();};
+  let s=15;
+  const t=setInterval(()=>{
+    if(!document.getElementById('nv-banner')){clearInterval(t);return;}
+    const tag=(document.activeElement&&document.activeElement.tagName)||'';
+    if(/INPUT|TEXTAREA|SELECT/.test(tag))return;   // não recarrega se estiver editando
+    if(--s<=0){clearInterval(t);location.reload();}
+  },1000);
+}
+async function _checarVersao(){
+  if(!_BUILD)return;
+  try{
+    const r=await fetch(location.pathname+'?b='+Date.now(),{cache:'no-store'});
+    if(!r.ok)return;
+    const m=(await r.text()).match(/name="app-build"\s+content="([^"]+)"/);
+    if(m&&m[1]&&m[1]!==_BUILD&&m[1]!==_nvSkip)_bannerNovaVersao(m[1]);
+  }catch(e){}
+}
+setTimeout(_checarVersao,5000);
+setInterval(_checarVersao,180000);
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')_checarVersao();});
 
 const PROJ_START = '2026-03-25';
 const OBRA_START = '2026-05-11';
