@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Avanço de Obra — Gerdau Belém</title>
-<meta name="app-build" content="2026-07-09.1">
+<meta name="app-build" content="2026-07-09.2">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@300;400;500;600&display=swap');
 :root{--yellow:#f5b800;--dark:#0d1520;--mid:#111e2e;--panel:#0f2840;--green:#22c55e;--amber:#f59e0b;--red:#ef4444;--blue:#3b82f6;--teal:#14b8a6;--purple:#8b5cf6;--text:#e2e8f0;--dim:#64748b;--border:rgba(245,184,0,0.15)}
@@ -440,7 +440,7 @@ const PHASES = [
 // GalpãoTrack (mesma obra BELEM2025, lido via Firebase em tempo real).
 // ⚠️ ESPELHA calcTelhas() de galpaotrack.html. Se mudar o cálculo de telhas lá, atualizar AQUI também.
 // ============================
-const _GTL={TPB:7,NF:8,MARGIN:1,LEN:{cobEsq:8.9,cobDir:8.9,fechDir:8.9,lant:1.5,frontal:1.5}};
+const _GTL={TPB:7,NF:8,MARGIN:1,LEN:{cobEsq:8.9,cobDir:8.9,fechDir:8.9,fechDoca:8.9*0.45,lant:1.5,frontal:1.5}};
 function _gtNB(cfg){return Math.max(0,(+(cfg&&cfg.eixos)||1)-1);}
 function _gtLant(cfg,b){const nb=_gtNB(cfg);return b>=1+_GTL.MARGIN&&b<=nb-_GTL.MARGIN;}
 function _gtDock(cfg){const nb=_gtNB(cfg);return new Set([Math.round(nb*0.28),Math.round(nb*0.55),nb].filter(b=>b>=1));}
@@ -448,13 +448,14 @@ function _gtBay(t,b){const x=(t&&t.bays&&t.bays[b])||{};const c=v=>Math.max(0,Ma
 function calcTelhasGeral(obra){
   if(!obra)return null;
   const cfg=obra.config||{}, t=obra.telhas||{}, NB=_gtNB(cfg), NF=+t.nFrontal||_GTL.NF, dock=_gtDock(cfg);
-  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},frontal:{i:0,t:0}};
+  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},fechDoca:{i:0,t:0},frontal:{i:0,t:0}};
   for(let b=1;b<=NB;b++){
     const bd=_gtBay(t,b);
     loc.cobEsq.i+=bd.cobEsq;loc.cobEsq.t+=_GTL.TPB;
     loc.cobDir.i+=bd.cobDir;loc.cobDir.t+=_GTL.TPB;
     if(_gtLant(cfg,b)){loc.lant.i+=bd.lant;loc.lant.t+=_GTL.TPB;}
-    if(!dock.has(b)){loc.fechDir.i+=bd.fechDir;loc.fechDir.t+=_GTL.TPB;}
+    const fk=dock.has(b)?'fechDoca':'fechDir';   // vão de doca = telha menor (peso reduzido) — espelha galpaotrack
+    loc[fk].i+=bd.fechDir;loc[fk].t+=_GTL.TPB;
   }
   loc.frontal.i=Math.max(0,Math.min(NF,+t.frontal||0));loc.frontal.t=NF;
   let wi=0,wt=0;

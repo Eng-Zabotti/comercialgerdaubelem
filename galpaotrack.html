@@ -45,7 +45,8 @@ const VERSION='2.0.0';
 /* ═══════════════ TELHAS — FASE INSTALAÇÃO ═══════════════ */
 const TILES_PER_BAY=7;                                        // 7 telhas por vão (c.3)
 const NF_DEFAULT=8;                                           // telhas do oitão frontal
-const TILE_LEN={cobEsq:8.9,cobDir:8.9,fechDir:8.9,lant:1.5,frontal:1.5}; // comprimento p/ ponderar (d.5)
+const DOCK_H_FRAC=0.45;   // telha da doca: faixa superior ~45% da altura da parede (menor), sobre a abertura
+const TILE_LEN={cobEsq:8.9,cobDir:8.9,fechDir:8.9,fechDoca:8.9*DOCK_H_FRAC,lant:1.5,frontal:1.5}; // ponderação por tamanho (d.5); doca é telha menor
 const COR_TELHA_AZUL='#20396B';   // ≈ RAL 5003 (azul safira) — telha substituída/instalada (e.6)
 const COR_METALICA='#AEB4BC';     // telha metálica (não substituída / pendente) (h.9)
 const COR_REDE='#22C55E';         // rede de proteção (c.4)
@@ -69,12 +70,13 @@ function ensureBay(telhas,b){
 function calcTelhas(project){
   const telhas=project.telhas||{};
   const NB=nBays(project.config), NF=+telhas.nFrontal||NF_DEFAULT;
-  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},frontal:{i:0,t:0}};
+  const loc={cobEsq:{i:0,t:0},cobDir:{i:0,t:0},lant:{i:0,t:0},fechDir:{i:0,t:0},fechDoca:{i:0,t:0},frontal:{i:0,t:0}};
   for(let b=1;b<=NB;b++){
     const bd=ensureBay(telhas,b);
     ['cobEsq','cobDir'].forEach(k=>{loc[k].i+=bd[k];loc[k].t+=TILES_PER_BAY;});
     if(hasLant(project.config,b)){loc.lant.i+=bd.lant;loc.lant.t+=TILES_PER_BAY;}  // lanternin só nos vãos centrais
-    if(!isDock(project.config,b)){loc.fechDir.i+=bd.fechDir;loc.fechDir.t+=TILES_PER_BAY;}  // fechamento (avanço) só nos vãos sem doca
+    const fk=isDock(project.config,b)?'fechDoca':'fechDir';   // vão de doca = telha menor (peso reduzido)
+    loc[fk].i+=bd.fechDir;loc[fk].t+=TILES_PER_BAY;
   }
   loc.frontal.i=Math.max(0,Math.min(NF,+telhas.frontal||0));loc.frontal.t=NF;
   let wi=0,wt=0;
@@ -485,7 +487,8 @@ function Vista3D({project,h=440,bare=false}){
           stripMap[`lant_${b}_${j}`] =ramp(xc,w, -lantW/2,yLantTop, 0,yLantRidge);
           stripMap[`lant2_${b}_${j}`]=ramp(xc,w,  lantW/2,yLantTop, 0,yLantRidge);
         }
-        if(!dock) stripMap[`fechDir_${b}_${j}`]=wall(xc,w, zR, 0.05, hC);  // fechamento (avanço azul) no lado das docas (zR); vãos de doca ficam abertos (d)
+        // fechamento (avanço azul) no lado das docas (zR). Vão de doca: telha MENOR na faixa superior, sobre a abertura.
+        stripMap[`fechDir_${b}_${j}`]=dock ? wall(xc,w, zR, hC*(1-DOCK_H_FRAC), hC) : wall(xc,w, zR, 0.05, hC);
       }
     }
     // Lanternin recuado 1 vão/ponta: clerestório (janelas) + empenas de ponta + tampa nos vãos das pontas
@@ -820,7 +823,6 @@ function TabTelhas({project,canEdit,onUpdate}){
     const bays={...(telhas.bays||{})};
     for(let b=1;b<=NB;b++){
       if(k==='lant'&&!hasLant(project.config,b))continue;   // lanternin não cobre as pontas
-      if(k==='fechDir'&&isDock(project.config,b))continue;  // fechamento não existe nos vãos de doca
       bays[b]={...ensureBay(telhas,b),[k]:v};
     }
     onUpdate({...project,telhas:{...telhas,bays}});
@@ -868,20 +870,16 @@ function TabTelhas({project,canEdit,onUpdate}){
             {Array.from({length:NB},(_,i)=>i+1).map(b=>{
               const bd=ensureBay(project.telhas||{},b);
               const lantOk=hasLant(project.config,b);
-              const dockB=isDock(project.config,b);
-              const full=bd.cobEsq>=7&&bd.cobDir>=7&&(dockB||bd.fechDir>=7)&&(!lantOk||bd.lant>=7);
+              const full=bd.cobEsq>=7&&bd.cobDir>=7&&bd.fechDir>=7&&(!lantOk||bd.lant>=7);
               return(
                 <tr key={b} className={full?'bg-green-50':'bg-white'} style={{boxShadow:'0 1px 0 #F1F5F9'}}>
                   <td className="px-2 py-1.5 font-mono font-bold text-gray-600 whitespace-nowrap">E{pad2(b)}–E{pad2(b+1)}</td>
                   {TELHA_LOCS.map(L=>{
                     const naLant=L.k==='lant'&&!lantOk;
-                    const naFech=L.k==='fechDir'&&dockB;
                     return(
                     <td key={L.k} className="px-2 py-1.5 text-center">
                       {naLant
                         ? <span className="text-gray-300 text-xs" title="Sem lanternin neste vão">—</span>
-                        : naFech
-                        ? <span className="text-gray-300 text-xs" title="Vão de doca (abertura) — sem telha de fechamento">—</span>
                         : canEdit
                           ? <Stepper val={bd[L.k]} max={TILES_PER_BAY} onChange={v=>setBay(b,{[L.k]:v})}/>
                           : <span className={`font-bold tabular-nums ${bd[L.k]>=7?'text-green-600':bd[L.k]>0?'text-blue-700':'text-gray-300'}`}>{bd[L.k]}/7</span>}
