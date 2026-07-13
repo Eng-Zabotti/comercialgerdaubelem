@@ -1334,16 +1334,16 @@ function renderPlano(){
     const rowStyle=atrasado?'background:rgba(239,68,68,.04)':'';
     return `<tr style="${rowStyle}">
       <td style="color:var(--dim);font-size:.78rem;text-align:center">${i+1}</td>
-      <td><input class="plano-inp" value="${escHtml(item.oque)}" placeholder="Descreva a ação" oninput="updatePlanoItem(${i},'oque',this.value)"></td>
-      <td><input class="plano-inp" value="${escHtml(item.como)}" placeholder="Como será feito" oninput="updatePlanoItem(${i},'como',this.value)"></td>
+      <td><input class="plano-inp" value="${escHtml(item.oque)}" placeholder="Descreva a ação" onblur="updatePlanoItem(${i},'oque',this.value)"></td>
+      <td><input class="plano-inp" value="${escHtml(item.como)}" placeholder="Como será feito" onblur="updatePlanoItem(${i},'como',this.value)"></td>
       <td>
         <input class="plano-inp" type="date" value="${item.quando||''}" onchange="updatePlanoItem(${i},'quando',this.value)">
         ${atrasado?'<div class="plano-late-tag">ATRASADO</div>':''}
       </td>
-      <td><input class="plano-inp" value="${escHtml(item.quem)}" placeholder="Responsável" oninput="updatePlanoItem(${i},'quem',this.value)"></td>
-      <td><input class="plano-inp" type="number" min="0" max="100" value="${item.impacto??''}" placeholder="0" oninput="updatePlanoItem(${i},'impacto',this.value)"></td>
+      <td><input class="plano-inp" value="${escHtml(item.quem)}" placeholder="Responsável" onblur="updatePlanoItem(${i},'quem',this.value)"></td>
+      <td><input class="plano-inp" type="number" min="0" max="100" value="${item.impacto??''}" placeholder="0" onblur="updatePlanoItem(${i},'impacto',this.value)"></td>
       <td><select class="plano-sel" onchange="updatePlanoItem(${i},'status',this.value)">${selOpts}</select></td>
-      <td><input class="plano-inp" value="${escHtml(item.obs)}" placeholder="Observação" oninput="updatePlanoItem(${i},'obs',this.value)"></td>
+      <td><input class="plano-inp" value="${escHtml(item.obs)}" placeholder="Observação" onblur="updatePlanoItem(${i},'obs',this.value)"></td>
       <td><button class="btn-del" onclick="deletePlanoItem(${i})" title="Remover">✕</button></td>
     </tr>`;
   }).join('');
