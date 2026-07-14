@@ -557,11 +557,12 @@ function Vista3D({project,h=440,bare=false}){
       for(let b=1;b<=NB;b++){
         const bd=ensureBay(t,b);
         for(let j=0;j<TILES_PER_BAY;j++){
-          paint(stripMap[`cobEsq_${b}_${j}`], j<bd.cobEsq);
-          paint(stripMap[`cobDir_${b}_${j}`], j<bd.cobDir);
-          paint(stripMap[`fechDir_${b}_${j}`],j<bd.fechDir);
-          paint(stripMap[`lant_${b}_${j}`],  j<bd.lant);
-          paint(stripMap[`lant2_${b}_${j}`], j<bd.lant);
+          const on=n=>j>=TILES_PER_BAY-n;   // instala da ponta (X0+L, rede) p/ o oitão — sequência executiva de campo (flecha)
+          paint(stripMap[`cobEsq_${b}_${j}`], on(bd.cobEsq));
+          paint(stripMap[`cobDir_${b}_${j}`], on(bd.cobDir));
+          paint(stripMap[`fechDir_${b}_${j}`],on(bd.fechDir));
+          paint(stripMap[`lant_${b}_${j}`],  on(bd.lant));
+          paint(stripMap[`lant2_${b}_${j}`], on(bd.lant));
         }
       }
       const fr=Math.max(0,Math.min(NF,+t.frontal||0));
