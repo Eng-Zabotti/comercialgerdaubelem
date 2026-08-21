@@ -60,7 +60,7 @@ const nBays=cfg=>Math.max(0,(+(cfg&&cfg.eixos)||1)-1);        // vãos de telha 
 const LANT_MARGIN=1;                                          // lanternin recuado 1 vão em cada ponta
 const hasLant=(cfg,b)=>{const nb=nBays(cfg);return b>=1+LANT_MARGIN&&b<=nb-LANT_MARGIN;};
 // Vãos com doca (abertura) — SÓ o lado das docas tem fechamento substituído (avanço); o outro lado é cinza contínuo (d)
-const dockBaysOf=cfg=>{const nb=nBays(cfg);return new Set([Math.round(nb*0.28),Math.round(nb*0.55),nb].filter(b=>b>=1));};
+const dockBaysOf=cfg=>{if(cfg&&cfg.docas&&Array.isArray(cfg.docas)&&cfg.docas.length)return new Set(cfg.docas);const nb=nBays(cfg);return new Set([Math.round(nb*0.28),Math.round(nb*0.5),nb].filter(b=>b>=1));};  // cfg.docas=[8] = manual; fallback: vãos ~28%, 50%, 100%
 const isDock=(cfg,b)=>dockBaysOf(cfg).has(b);
 function ensureBay(telhas,b){
   const x=(telhas&&telhas.bays&&telhas.bays[b])||{};
@@ -418,7 +418,7 @@ function Vista3D({project,h=440,bare=false}){
   const mountRef=useRef(null);
   const threeRef=useRef(null);
   const cfg=project.config||{};
-  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}|${bare?1:0}`;
+  const sig=`${cfg.eixos}|${cfg.vaos}|${cfg.aguas}|${cfg.vaoComprimento}|${cfg.largura}|${cfg.alturaColuna}|${(project.telhas&&project.telhas.nFrontal)||NF_DEFAULT}|${bare?1:0}|${(cfg.docas||[]).join(',')}`;
 
   const buildScene=useCallback(()=>{
     const container=mountRef.current;
@@ -1048,11 +1048,11 @@ function PainelProjeto({project,role='viewer',obraCode,onBack,onUpdate}){
 /* ═══════════════ MODAL EDITAR CONFIG ═══════════════ */
 function ModalEditarConfig({project,onClose,onSave}){
   const cfg=project.config;
-  const[f,setF]=useState({name:project.name,eixos:cfg.eixos,vaos:cfg.vaos||1,aguas:cfg.aguas||2,nTC:cfg.nTC||5,nTF:cfg.nTF||4,vaoComprimento:cfg.vaoComprimento||6,largura:cfg.largura||18,alturaColuna:cfg.alturaColuna||8});
+  const[f,setF]=useState({name:project.name,eixos:cfg.eixos,vaos:cfg.vaos||1,aguas:cfg.aguas||2,nTC:cfg.nTC||5,nTF:cfg.nTF||4,vaoComprimento:cfg.vaoComprimento||6,largura:cfg.largura||18,alturaColuna:cfg.alturaColuna||8,docas:(cfg.docas||[]).join(', ')});
   const[err,setErr]=useState({});
   const set=(k,v)=>setF(p=>({...p,[k]:v}));
   const validate=()=>{const e={};if(!f.name.trim())e.name='Obrigatório';if(f.eixos<2||f.eixos>60)e.eixos='2 a 60';if(f.nTC<1||f.nTC>20)e.nTC='1 a 20';if(f.nTF<1||f.nTF>20)e.nTF='1 a 20';setErr(e);return Object.keys(e).length===0;};
-  const salvar=()=>{if(!validate())return;const newCfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna};onSave(f.name.trim(),newCfg);};
+  const salvar=()=>{if(!validate())return;const docasArr=f.docas.trim()?f.docas.split(/[\s,]+/).map(Number).filter(n=>n>=1):[];const newCfg={eixos:+f.eixos,vaos:+f.vaos,aguas:+f.aguas,nTC:+f.nTC,nTF:+f.nTF,vaoComprimento:+f.vaoComprimento,largura:+f.largura,alturaColuna:+f.alturaColuna,...(docasArr.length?{docas:docasArr}:{})};onSave(f.name.trim(),newCfg);};
   const tot=useMemo(()=>{const e=+f.eixos||0,v=+f.vaos||1,a=+f.aguas||2,tc=+f.nTC||0,tf=+f.nTF||0;const p=e*(v+1),ts=e*v,tco=(e-1)*tc*a*v,tfe=(e-1)*tf*2;return{p,ts,tco,tfe,total:p+ts+tco+tfe};},[f.eixos,f.vaos,f.aguas,f.nTC,f.nTF]);
   const F=({lbl,k,type='number',min,max})=>(<div><label className="block text-sm font-medium text-gray-700 mb-0.5">{lbl}</label><input type={type} value={f[k]} min={min} max={max} onChange={e=>set(k,type==='number'?e.target.value:e.target.value)} className={`w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 ${err[k]?'border-red-400':'border-gray-300'}`}/>{err[k]&&<p className="text-xs text-red-500 mt-0.5">{err[k]}</p>}</div>);
   return(
@@ -1067,6 +1067,7 @@ function ModalEditarConfig({project,onClose,onSave}){
             <div className="mt-3"><label className="block text-sm font-medium text-gray-700 mb-0.5">Número de Águas</label><select value={f.aguas} onChange={e=>set('aguas',+e.target.value)} className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"><option value={1}>1 Água</option><option value={2}>2 Águas</option></select></div>
           </div>
           <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Terças</p><div className="grid grid-cols-2 gap-3"><F lbl="Terças Cobertura / vão / água" k="nTC" min={1} max={20}/><F lbl="Terças Fechamento / vão / face" k="nTF" min={1} max={20}/></div></div>
+          <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Docas</p><div><label className="block text-sm font-medium text-gray-700 mb-0.5">Vãos com Doca</label><input type="text" value={f.docas} onChange={e=>set('docas',e.target.value)} placeholder="ex: 8   ou   4, 8, 16" className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/><p className="text-xs text-gray-400 mt-0.5">Números de vão separados por vírgula. Vazio = calcula automático.</p></div></div>
           <div className="border-t pt-4"><p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Dimensões (metros)</p><div className="grid grid-cols-3 gap-3"><F lbl="Espaç. entre Eixos" k="vaoComprimento" min={1} max={20}/><F lbl="Largura do Vão" k="largura" min={5} max={80}/><F lbl="Altura Colunas" k="alturaColuna" min={2} max={25}/></div></div>
         </div>
         <div className="mt-4 p-4 bg-blue-50 rounded-xl"><p className="text-sm font-bold text-blue-800 mb-2">Resumo da nova estrutura</p>
